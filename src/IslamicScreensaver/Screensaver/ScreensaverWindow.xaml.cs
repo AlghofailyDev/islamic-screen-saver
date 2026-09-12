@@ -40,9 +40,9 @@ public partial class ScreensaverWindow : Window
         base.OnPreviewMouseMove(e);
     }
 
-    protected override void OnPreviewMouseDown(MouseButtonEventArgs e) => _session.OnDiscreteInput();
+    protected override void OnPreviewMouseDown(MouseButtonEventArgs e) => _session.OnDiscreteInput($"mouse {e.ChangedButton}");
 
-    protected override void OnPreviewMouseWheel(MouseWheelEventArgs e) => _session.OnDiscreteInput();
+    protected override void OnPreviewMouseWheel(MouseWheelEventArgs e) => _session.OnDiscreteInput("mouse wheel");
 
-    protected override void OnPreviewKeyDown(KeyEventArgs e) => _session.OnDiscreteInput();
+    protected override void OnPreviewKeyDown(KeyEventArgs e) => _session.OnDiscreteInput($"key {e.Key} (system key {e.SystemKey}, repeat {e.IsRepeat})");
 }

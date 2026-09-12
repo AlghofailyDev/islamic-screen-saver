@@ -1,6 +1,7 @@
 <Window x:Class="IslamicScreensaver.Screensaver.ScreensaverWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:IslamicScreensaver.Screensaver"
         Title="Islamic Screensaver"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -9,5 +10,7 @@
         ShowInTaskbar="False"
         Background="Black"
         Cursor="None">
-    <Grid x:Name="Root" Background="Black" />
+    <Grid x:Name="Root" Background="Black">
+        <local:VersePanel x:Name="Panel" />
+    </Grid>
 </Window>

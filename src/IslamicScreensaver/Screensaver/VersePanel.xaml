@@ -1,0 +1,48 @@
+<UserControl x:Class="IslamicScreensaver.Screensaver.VersePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             HorizontalAlignment="Center"
+             VerticalAlignment="Bottom"
+             Margin="0,0,0,88"
+             MaxWidth="1040">
+    <!-- M3: bare layout to prove sync. M4 replaces the chrome with the glass panel from the design. -->
+    <StackPanel>
+        <TextBlock x:Name="SurahLabel"
+                   HorizontalAlignment="Center"
+                   FontFamily="Segoe UI Variable Text, Segoe UI"
+                   FontSize="14"
+                   Foreground="#D9FFFFFF"
+                   Margin="0,0,0,18" />
+        <Border Background="#6A0F2A2E"
+                BorderBrush="#24FFFFFF"
+                BorderThickness="1"
+                CornerRadius="20"
+                Padding="64,52,64,48">
+            <StackPanel>
+                <TextBlock x:Name="ArabicText"
+                           FlowDirection="RightToLeft"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           FontFamily="Amiri Quran, KFGQPC Uthmanic Script HAFS, Traditional Arabic"
+                           FontSize="66"
+                           LineHeight="125"
+                           LineStackingStrategy="BlockLineHeight"
+                           Foreground="#FBF5E6" />
+                <TextBlock x:Name="TranslationText"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           FontFamily="Segoe UI Variable Text, Segoe UI"
+                           FontWeight="Light"
+                           FontSize="22"
+                           Foreground="#BDFFFFFF"
+                           Margin="0,18,0,0" />
+            </StackPanel>
+        </Border>
+        <TextBlock x:Name="ReciterLabel"
+                   HorizontalAlignment="Left"
+                   FontFamily="Segoe UI Variable Text, Segoe UI"
+                   FontSize="14"
+                   Foreground="#99FFFFFF"
+                   Margin="0,14,0,0" />
+    </StackPanel>
+</UserControl>

@@ -172,11 +172,14 @@ Each milestone ends with something runnable. Do not start the next until the che
       cache round-trips, resumable/retrying/truncated downloads (58 tests)
 
 ### M3 — Playback + sync
-- [ ] Playlist builder: surah selection, sequential / shuffled, reciter rotation
-- [ ] `MediaPlayer` engine, gapless surah-to-surah, auto-advance
-- [ ] Verse clock: position → verse (+ word) with binary search; unit tested
-- [ ] Plain-text verse display updating in sync (no styling yet)
-- [ ] Offline behaviour: uncached items skipped, empty-cache hint shown
+- [x] Playlist builder: surah selection, sequential / shuffled, reciter rotation (`Core/Playlist`)
+- [x] `MediaPlayer` engine with a pre-opened standby player for surah-to-surah advance (`Player/PlaybackEngine`)
+- [x] Verse clock: position → verse (+ word) with binary search; unit tested (`Core/Timing/VerseClock`)
+- [x] Plain-text verse display updating in sync, word highlight via per-word `Run`s (`Screensaver/VersePanel`)
+- [x] Offline behaviour: uncached items skipped, empty-cache hint shown
+- [x] Settings model + JSON store with normalisation and schema version (`Core/Settings`)
+- [x] Resume where left off: `playback-state.json` saved on every verse change and on exit; verified live
+- [ ] User to confirm: audio audible, verse text visible on the primary monitor
 
 ### M4 — Visuals
 - [ ] Background layer: image + video, Ken Burns, vignette, user file support
