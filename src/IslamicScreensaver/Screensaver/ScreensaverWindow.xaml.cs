@@ -33,8 +33,10 @@ public partial class ScreensaverWindow : Window
 
     protected override void OnPreviewMouseMove(MouseEventArgs e)
     {
-        var screen = PointToScreen(e.GetPosition(this));
-        _session.OnMouseMove(screen.X, screen.Y);
+        // Ask Win32 for the position rather than converting WPF's DIPs: with two monitors at different
+        // scale factors the two answers disagree, and the session compares every sample against one origin.
+        if (GetCursorPos(out var p))
+            _session.OnMouseMove(p.X, p.Y);
         base.OnPreviewMouseMove(e);
     }
 

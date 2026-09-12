@@ -143,18 +143,22 @@ Each milestone ends with something runnable. Do not start the next until the che
 - [x] Design canvas: screensaver frame (2 backgrounds) + Appearance, Reciters, Surahs pages —
       sources in `docs/design/`, canvas at https://claude.ai/code/artifact/2e0c7130-9a55-447e-bfd3-49f62026fea0
 - [x] Install .NET 10 SDK; confirm `dotnet --version` (10.0.401)
-- [ ] Solution + three projects scaffolded, builds clean
-- [ ] `git init`, `.gitignore`, first commit
+- [x] Solution + three projects scaffolded, builds clean
+- [x] `git init`, `.gitignore`, first commit
 
 ### M1 — Screensaver shell
-- [ ] Arg parsing → `/s`, `/c`, `/p`, none
-- [ ] One fullscreen topmost window per monitor, cursor hidden, black background
-- [ ] Input watchdog with launch grace period; clean shutdown
-- [ ] `/p` renders a static image into the given HWND
-- [ ] Placeholder settings window opens for `/c`
-- [ ] Publish as single-file `.scr`; install script sets registry; **appears and runs from the
-      Windows screensaver dropdown**
-- [ ] Verified: DPI scaling on mixed-DPI monitors, exit latency < 100 ms
+- [x] Arg parsing → `/s`, `/c`, `/p`, none (unit tested)
+- [x] One fullscreen topmost window per monitor, cursor hidden, black background
+- [x] Input watchdog with launch grace period; clean shutdown (origin sampled via `GetCursorPos`
+      after 500 ms; keys/clicks exit immediately)
+- [x] `/p` renders a static placeholder into the given HWND (visual check in the Windows dialog pending)
+- [x] Placeholder settings window opens for `/c` (with a "Run screensaver now" dev button)
+- [x] `installer/install.ps1` publishes self-contained to `%LOCALAPPDATA%\Programs\IslamicScreensaver`
+      and registers `SCRNSAVE.EXE`; `uninstall.ps1` reverses it
+- [ ] **Appears and runs from the Windows screensaver dropdown** (user to confirm visually)
+- [x] Exit latency < 100 ms (measured 47 ms key → process exit)
+- [ ] Verified: DPI scaling on mixed-DPI monitors (positioning works on 2 monitors; content DPI
+      check waits for M4 when there is something to look at)
 
 ### M2 — Content pipeline (Core)
 - [ ] Quran.com v4 client: reciters, chapters, audio URL + timings (verse + word), Uthmani text,
@@ -221,3 +225,5 @@ Open:
 | 2026-09-12 | .NET 10 over .NET 8 | .NET 8 support ends Nov 2026; .NET 10 is LTS and ships WPF Fluent baseline |
 | 2026-09-12 | WPF UI (lepo.co) for the settings app | NavigationView + Mica; built-in Fluent theme lacks composite controls |
 | 2026-09-12 | Install to Program Files, not System32 | Self-contained binary is large; registry path works either way |
+| 2026-09-13 | Install per-user to `%LOCALAPPDATA%\Programs\IslamicScreensaver`, superseding Program Files | `SCRNSAVE.EXE` lives in HKCU anyway, so no elevation is needed for install or reinstall |
+| 2026-09-13 | Self-contained **folder** publish (ReadyToRun), not single-file | WPF single-file still extracts native DLLs to `%TEMP%` at first run — slower cold start and a risk on the secure desktop; a folder has neither |

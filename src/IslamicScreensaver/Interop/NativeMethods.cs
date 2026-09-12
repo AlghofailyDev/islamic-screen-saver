@@ -46,6 +46,15 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern bool IsWindow(nint hWnd);
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X, Y;
+    }
+
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out POINT lpPoint);
+
     public const int WS_CHILD = 0x40000000;
     public const int WS_VISIBLE = 0x10000000;
     public const int WS_CLIPCHILDREN = 0x02000000;

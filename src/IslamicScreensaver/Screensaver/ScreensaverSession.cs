@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Screensaver;
 using IslamicScreensaver.Interop;
+using static IslamicScreensaver.Interop.NativeMethods;
 
 namespace IslamicScreensaver.Screensaver;
 
@@ -31,12 +33,23 @@ internal sealed class ScreensaverSession
 
         // Keyboard input needs a focused window; the primary is first in the list.
         _windows.FirstOrDefault()?.Activate();
+
+        // When the grace period ends, take the cursor's resting position as the origin so the first
+        // real event is compared against where the mouse actually is, not against a synthetic move.
+        var originTimer = new DispatcherTimer(DispatcherPriority.Input) { Interval = _exitPolicy.GracePeriod };
+        originTimer.Tick += (_, _) =>
+        {
+            originTimer.Stop();
+            if (GetCursorPos(out var p))
+                OnMouseMove(p.X, p.Y);
+        };
+        originTimer.Start();
     }
 
     public void OnMouseMove(double screenX, double screenY)
     {
         if (_exitPolicy.ShouldExitOnMouseMove(_clock.Elapsed, screenX, screenY))
-            Exit("mouse moved");
+            Exit($"mouse moved to ({screenX:0}, {screenY:0})");
     }
 
     public void OnDiscreteInput()
@@ -51,7 +64,7 @@ internal sealed class ScreensaverSession
             return;
 
         _exiting = true;
-        Log.Info($"Screensaver exiting ({reason}) after {_clock.Elapsed:mm\\:ss}.");
+        Log.Info($"Screensaver exiting ({reason}) after {_clock.Elapsed:mm\\:ss\\.fff}.");
         Application.Current.Shutdown();
     }
 }
