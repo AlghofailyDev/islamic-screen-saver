@@ -42,8 +42,9 @@ public class ModelsTests
         var timing = new VerseTiming(new VerseKey(2, 255), 10, 20, [new WordSegment(1, 10, 15)]);
         var json = JsonSerializer.Serialize(timing);
         var back = JsonSerializer.Deserialize<VerseTiming>(json);
+        Assert.NotNull(back);
         Assert.Equal(timing, back with { Words = timing.Words });
-        Assert.Equal(timing.Words[0], back!.Words[0]);
+        Assert.Equal(timing.Words[0], back.Words[0]);
     }
 
     [Theory]

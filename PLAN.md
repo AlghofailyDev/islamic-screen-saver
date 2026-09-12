@@ -162,12 +162,14 @@ Each milestone ends with something runnable. Do not start the next until the che
       check waits for M4 when there is something to look at)
 
 ### M2 — Content pipeline (Core)
-- [ ] Quran.com v4 client: reciters, chapters, audio URL + timings (verse + word), Uthmani text,
-      translations list + text
-- [ ] Cache manager with manifest; atomic writes; resume/retry downloads
-- [ ] Download queue with progress events (consumed by settings UI later)
-- [ ] Bundled starter set: one reciter, Al-Fatiha + Juz Amma, English translation
-- [ ] Unit tests: manifest, cache paths, timing lookup, verse-key parsing
+- [x] Quran.com v4 client: reciters, chapters, audio URL + timings (verse + word), Uthmani text,
+      translations list + text (`Content/QuranApiClient` + pure `QuranApiParser`)
+- [x] Cache manager with manifest; atomic writes; resume/retry downloads (`ContentCache`, `ContentDownloader`)
+- [x] Download progress events (`IProgress<DownloadProgress>`; a queue/UI wrapper comes with M5)
+- [x] Starter set: reciter 7 (Alafasy), Al-Fatihah + Juz ʿAmma, Saheeh International — fetched at
+      install time via `install.ps1 -Seed` (`.scr /seed`), not shipped in the package (51 MB)
+- [x] Unit tests: parser against captured payloads, verse keys, translation cleaning, manifest,
+      cache round-trips, resumable/retrying/truncated downloads (58 tests)
 
 ### M3 — Playback + sync
 - [ ] Playlist builder: surah selection, sequential / shuffled, reciter rotation
@@ -228,3 +230,6 @@ Open:
 | 2026-09-12 | Install to Program Files, not System32 | Self-contained binary is large; registry path works either way |
 | 2026-09-13 | Install per-user to `%LOCALAPPDATA%\Programs\IslamicScreensaver`, superseding Program Files | `SCRNSAVE.EXE` lives in HKCU anyway, so no elevation is needed for install or reinstall |
 | 2026-09-13 | Self-contained **folder** publish (ReadyToRun), not single-file | WPF single-file still extracts native DLLs to `%TEMP%` at first run — slower cold start and a risk on the secure desktop; a folder has neither |
+| 2026-09-13 | Starter content is downloaded at install time, not bundled | 51 MB of MP3 does not belong in git or the package; `install.ps1 -Seed` runs `.scr /seed`, idempotent |
+| 2026-09-13 | Default translation: Saheeh International (id 20) | Quran.com's `quran/translations/131` (Clear Quran) no longer serves text; 20 does and is widely used |
+| 2026-09-13 | Download completeness judged by HTTP `Content-Length`, not the API's `file_size` | API metadata is stale (claimed 839,808 bytes for a 793,327-byte file) |
