@@ -155,7 +155,8 @@ Each milestone ends with something runnable. Do not start the next until the che
 - [x] Placeholder settings window opens for `/c` (with a "Run screensaver now" dev button)
 - [x] `installer/install.ps1` publishes self-contained to `%LOCALAPPDATA%\Programs\IslamicScreensaver`
       and registers `SCRNSAVE.EXE`; `uninstall.ps1` reverses it
-- [ ] **Appears and runs from the Windows screensaver dropdown** (user to confirm visually)
+- [x] **Appears and runs from the Windows screensaver dropdown** (confirmed 2026-09-13: dropdown,
+      preview thumbnail, Preview button and Settings… all work)
 - [x] Exit latency < 100 ms (measured 47 ms key → process exit)
 - [ ] Verified: DPI scaling on mixed-DPI monitors (positioning works on 2 monitors; content DPI
       check waits for M4 when there is something to look at)

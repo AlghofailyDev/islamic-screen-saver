@@ -8,6 +8,9 @@ public static class Log
 {
     private static readonly object Gate = new();
 
+    /// <summary>Where log files go. Tests point this at a scratch folder so they never touch the user's logs.</summary>
+    public static string Directory { get; set; } = AppPaths.LogDirectory;
+
     public static void Info(string message) => Write("INFO", message);
 
     public static void Error(string message, Exception? exception = null) =>
@@ -17,8 +20,8 @@ public static class Log
     {
         try
         {
-            Directory.CreateDirectory(AppPaths.LogDirectory);
-            var file = Path.Combine(AppPaths.LogDirectory, $"{DateTime.Now:yyyy-MM-dd}.log");
+            System.IO.Directory.CreateDirectory(Directory);
+            var file = Path.Combine(Directory, $"{DateTime.Now:yyyy-MM-dd}.log");
             var line = $"{DateTime.Now:HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}";
             lock (Gate)
             {

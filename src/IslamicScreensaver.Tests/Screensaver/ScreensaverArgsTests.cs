@@ -67,6 +67,12 @@ public class ScreensaverArgsTests
     }
 
     [Fact]
+    public void SlashSeed_IsTheInstallerMode()
+    {
+        Assert.Equal(ScreensaverMode.Seed, ScreensaverArgs.Parse(["/seed"]).Mode);
+    }
+
+    [Fact]
     public void NonNumericHandle_IsIgnored()
     {
         Assert.Equal(0, ScreensaverArgs.Parse(["/p", "abc"]).ParentWindow);

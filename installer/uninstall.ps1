@@ -13,7 +13,7 @@ $installDir = Join-Path $env:LOCALAPPDATA "Programs\IslamicScreensaver"
 $scr = Join-Path $installDir "IslamicScreensaver.scr"
 $desktopKey = "HKCU:\Control Panel\Desktop"
 
-Get-Process -Name "IslamicScreensaver" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and ($_.Path -ieq $scr) } | Stop-Process -Force -ErrorAction SilentlyContinue
 
 $current = (Get-ItemProperty -Path $desktopKey -Name "SCRNSAVE.EXE" -ErrorAction SilentlyContinue)."SCRNSAVE.EXE"
 if ($current -and ($current -ieq $scr)) {

@@ -12,6 +12,9 @@ public enum ScreensaverMode
 
     /// <summary>Render a thumbnail into the Windows dialog's preview box (<c>/p &lt;hwnd&gt;</c>).</summary>
     Preview,
+
+    /// <summary>Not a Windows mode: download the starter content set headlessly (<c>/seed</c>), used by the installer.</summary>
+    Seed,
 }
 
 /// <summary>
@@ -43,6 +46,7 @@ public sealed record ScreensaverArgs(ScreensaverMode Mode, nint ParentWindow)
             "s" => new ScreensaverArgs(ScreensaverMode.Run, 0),
             "p" => new ScreensaverArgs(ScreensaverMode.Preview, handle),
             "c" => new ScreensaverArgs(ScreensaverMode.Configure, handle),
+            "seed" => new ScreensaverArgs(ScreensaverMode.Seed, 0),
             // "/a" (legacy password change) and anything unknown fall back to settings.
             _ => new ScreensaverArgs(ScreensaverMode.Configure, 0),
         };

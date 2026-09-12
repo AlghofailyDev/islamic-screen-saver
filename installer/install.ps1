@@ -12,10 +12,15 @@
 
 .PARAMETER SkipPublish
     Only (re)write the registry entries; do not rebuild.
+
+.PARAMETER Seed
+    After installing, download the starter content (one reciter, Al-Fatihah + Juz Amma, English
+    translation) into %LOCALAPPDATA%\IslamicScreensaver\cache. Safe to re-run; already-cached items are skipped.
 #>
 param(
     [string]$Configuration = "Release",
-    [switch]$SkipPublish
+    [switch]$SkipPublish,
+    [switch]$Seed
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,8 +31,8 @@ $installDir = Join-Path $env:LOCALAPPDATA "Programs\IslamicScreensaver"
 $scr = Join-Path $installDir "IslamicScreensaver.scr"
 
 if (-not $SkipPublish) {
-    # A running screensaver holds its files open; stop it before overwriting.
-    Get-Process -Name "IslamicScreensaver" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    # Running instances (fullscreen, settings, or the dialog's preview) hold the files open; stop them first.
+    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and ($_.Path -ieq $scr) } | Stop-Process -Force -ErrorAction SilentlyContinue
 
     Write-Host "Publishing ($Configuration, self-contained win-x64) to $installDir ..."
     dotnet publish $project -c $Configuration -r win-x64 --self-contained true -o $installDir --nologo
@@ -49,6 +54,13 @@ $SPI_SETSCREENSAVEACTIVE = 0x0011
 $SPIF_UPDATEINIFILE = 0x01
 $SPIF_SENDCHANGE = 0x02
 [void][Native.User32]::SystemParametersInfo($SPI_SETSCREENSAVEACTIVE, 1, [IntPtr]::Zero, $SPIF_UPDATEINIFILE -bor $SPIF_SENDCHANGE)
+
+if ($Seed) {
+    Write-Host ""
+    Write-Host "Downloading starter content..."
+    $seedProcess = Start-Process -FilePath $scr -ArgumentList "/seed" -NoNewWindow -Wait -PassThru
+    if ($seedProcess.ExitCode -ne 0) { throw "Starter content download failed (exit code $($seedProcess.ExitCode)). See %LOCALAPPDATA%\IslamicScreensaver\logs." }
+}
 
 $timeout = (Get-ItemProperty -Path $desktopKey -Name "ScreenSaveTimeOut" -ErrorAction SilentlyContinue).ScreenSaveTimeOut
 Write-Host ""

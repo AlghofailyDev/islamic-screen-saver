@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Screensaver;
 using IslamicScreensaver.Screensaver;
+using IslamicScreensaver.Seeding;
 using IslamicScreensaver.Settings;
 
 namespace IslamicScreensaver;
@@ -47,7 +48,17 @@ public partial class App : Application
                 MainWindow = window;
                 window.Show();
                 break;
+
+            case ScreensaverMode.Seed:
+                _ = SeedThenExitAsync();
+                break;
         }
+    }
+
+    private async Task SeedThenExitAsync()
+    {
+        var exitCode = await StarterSeeder.RunAsync();
+        Shutdown(exitCode);
     }
 
     private void OnUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
