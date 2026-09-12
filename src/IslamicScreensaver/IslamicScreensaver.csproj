@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>IslamicScreensaver</AssemblyName>
+    <RootNamespace>IslamicScreensaver</RootNamespace>
+    <!-- English only; keeps the publish folder free of ~20 satellite-resource directories. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Pre-compiled native code cuts cold-start noticeably, which is the whole game for a screensaver. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IslamicScreensaver.Core\IslamicScreensaver.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Windows recognises a screensaver by its .scr extension. The .NET apphost locates its DLL and
+    runtimeconfig by its own file name minus extension, so renaming the published exe is all it takes.
+  -->
+  <Target Name="RenameToScr" AfterTargets="Publish">
+    <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(PublishDir)$(AssemblyName).scr" />
+    <Delete Files="$(PublishDir)$(AssemblyName).exe" />
+  </Target>
+
+</Project>

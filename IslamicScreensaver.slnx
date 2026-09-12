@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IslamicScreensaver.Core/IslamicScreensaver.Core.csproj" />
+    <Project Path="src/IslamicScreensaver.Tests/IslamicScreensaver.Tests.csproj" />
+    <Project Path="src/IslamicScreensaver/IslamicScreensaver.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Screensaver · Dawn", "x": 0, "y": 0, "w": 1600, "h": 900 },
+    { "file": "Night.dc.html", "title": "Screensaver · Night (word highlight)", "x": 1700, "y": 0, "w": 1600, "h": 900 },
+    { "file": "Appearance.dc.html", "title": "Settings · Appearance", "x": 0, "y": 1040, "w": 1100, "h": 720 },
+    { "file": "Reciters.dc.html", "title": "Settings · Reciters", "x": 1200, "y": 1040, "w": 1100, "h": 720 },
+    { "file": "Surahs.dc.html", "title": "Settings · Surahs", "x": 2400, "y": 1040, "w": 1100, "h": 720 }
+  ],
+  "annotations": [
+    { "id": "font-note", "x": 0, "y": -170, "w": 560, "text": "Arabic is set in Amiri Quran here as a stand-in — the app ships KFGQPC Uthmanic Hafs, which is not web-hosted. Everything else (Segoe UI Variable, Fluent controls, 8px cards, 4px controls) matches what WPF UI renders on Windows 11.\n\nTweak chips above each frame drive the same values the real settings will: blur, grain, tint, text colour, translation, accent." }
+  ],
+  "launch": { "view": "canvas" }
+}

@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+publish/
+*.user
+*.suo
+
+# IDE
+.vs/
+.idea/
+*.swp
+
+# Test results
+TestResults/
+*.trx
+
+# Local secrets / machine-specific
+*.local.json

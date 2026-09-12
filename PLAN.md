@@ -1,0 +1,223 @@
+# Islamic Screensaver — Project Plan
+
+A native Windows 11 screensaver that plays Quran recitation over a calm background, showing the
+verse being recited (Arabic + optional translation) in a frosted-glass panel, synced to the audio.
+Ships with a settings app for reciters, surahs, order, backgrounds, panel look, and translation.
+
+This file is the source of truth for scope and progress. Update the milestone checklists as work
+lands; record any decision change in the Decision Log at the bottom rather than silently editing.
+
+---
+
+## 1. Product behaviour
+
+- Activates after the idle timeout Windows already manages — it is a real `.scr`, selectable from
+  Settings > Personalization > Lock screen > Screen saver.
+- Any mouse movement or key press exits immediately, exactly like a stock screensaver.
+- Works fully offline once content is cached. The screensaver never makes network calls.
+- Multi-monitor: verse panel on the primary display, background-only on the others (option to mirror).
+
+### Customisation surface
+
+| Setting | Options |
+|---|---|
+| Reciters | One favourite, or several rotating in turn |
+| Surahs | All, or a chosen selection |
+| Order | Sequential or shuffled |
+| Background | Bundled calm visuals, or a user image / video |
+| Verse panel | Blur strength, grain amount, panel tint, text colours |
+| Translation | On/off, language |
+| Word highlight | On/off (uses word-level timestamps) |
+
+---
+
+## 2. Tech stack (decided)
+
+| Area | Choice | Notes |
+|---|---|---|
+| Language / UI | C# + WPF on **.NET 10 (LTS)** | Native = instant paint, one process, safest on the secure desktop |
+| Settings UI kit | **WPF UI (lepo.co)**, MIT | Fluent 2 look: NavigationView, Mica backdrop, cards, toggles |
+| Publish | Self-contained single-file `.scr` | No runtime install for users |
+| Install location | `%ProgramFiles%\IslamicScreensaver\` + `HKCU\Control Panel\Desktop\SCRNSAVE.EXE` | Not `System32` — the binary is ~70 MB |
+| Audio + sync | **Quran.com API v4** — surah-level MP3 with verse + word timestamps | Gapless; sync = player position → verse lookup |
+| Text / translations | Quran.com API v4 (Uthmani text, translations) | Same source as audio so verse keys align |
+| Arabic font | KFGQPC Uthmanic Hafs (free, King Fahd Complex) | Bundled as a resource |
+| UI font | Segoe UI Variable (system) | |
+| Glass panel | Custom HLSL pixel shader: blur + grain + tint, one pass | Over a `VisualBrush` of the background layer |
+| Video background | WPF `MediaElement` (hardware decode) | Revisit (FFME) only if 4K playback stutters |
+| Settings storage | `%APPDATA%\IslamicScreensaver\settings.json` | `System.Text.Json`, versioned schema |
+| Content cache | `%LOCALAPPDATA%\IslamicScreensaver\cache\` | Audio, timings, text, translations |
+| Tests | xUnit for pure logic (playlist, timing lookup, settings migration) | UI is verified manually via the run checklist |
+
+Rejected: Tauri/WebView2 (multi-process startup flash, secure-desktop risk), WinUI 3 (unpackaged
+`.scr` friction), Electron (weight), per-ayah audio files (gaps between verses).
+
+---
+
+## 3. Architecture
+
+Single binary, three modes — Windows launches the `.scr` with one of:
+
+| Arg | Mode | Behaviour |
+|---|---|---|
+| `/s` | Run | One fullscreen topmost window per monitor, cursor hidden, exit on input |
+| `/c` (or `/c:<hwnd>`) | Configure | Opens the settings window |
+| `/p <hwnd>` | Preview | Renders a static preview into the Windows dialog's thumbnail |
+| _(none)_ | Configure | Same as `/c` — makes double-clicking the file useful |
+
+### Projects
+
+```
+src/
+  IslamicScreensaver/            WPF app → published as IslamicScreensaver.scr
+    App.xaml(.cs)                Mode dispatch from args
+    Screensaver/                 Fullscreen windows, input watchdog, monitor enumeration
+    Player/                      Playback engine, verse clock, playlist
+    Rendering/                   Verse panel control, glass shader, background layer, animations
+    Settings/                    Settings window + pages (WPF UI), live preview host
+  IslamicScreensaver.Core/       No WPF dependency — testable
+    Models/                      Settings, Reciter, Surah, Verse, Timing
+    Content/                     Quran.com client, cache manager, download queue
+    Playlist/                    Sequential / shuffled ordering, reciter rotation
+    Timing/                      Position → verse / word lookup
+  IslamicScreensaver.Tests/      xUnit
+assets/
+  fonts/                         KFGQPC Uthmanic Hafs
+  backgrounds/                   Bundled default visuals
+  shaders/                       glass.hlsl → glass.ps (compiled)
+installer/                       Install / uninstall script (later: MSI)
+docs/                            Design references, API notes
+```
+
+### Key runtime flow (`/s`)
+
+1. Load `settings.json`; if missing, defaults.
+2. Enumerate monitors → create one `ScreensaverWindow` per monitor, black, topmost, no cursor.
+3. Build playlist from cached content only (skip anything not downloaded). If nothing cached,
+   show background + a one-line "open settings to download recitations" hint.
+4. Start `MediaPlayer` on the first surah; a 60 Hz `DispatcherTimer` reads `Position`, looks up
+   the current verse/word, and updates the panel with a crossfade on change.
+5. Input watchdog (mouse delta > small threshold, any key) → `Application.Shutdown()`.
+   Ignore the first ~500 ms of mouse noise after launch (stock Windows behaviour).
+
+### Data contract
+
+- Verse key `surah:ayah` (e.g. `2:255`) is the join key across text, translations, and timings.
+- Timing file per (reciter, surah): `[{ key, from_ms, to_ms, words: [{ from_ms, to_ms }] }]`.
+- Cache manifest records which (reciter, surah) pairs are complete, so playlist building is a
+  simple manifest read, never a filesystem scan.
+
+---
+
+## 4. Design direction
+
+### Screensaver
+- Full-bleed background with slow Ken Burns drift (~2 % scale over 60 s); soft edge vignette.
+- One frosted card, centred-low (lower third), max width ~1100 px at 1080p; blur + fine grain +
+  tint; 1 px low-opacity inner border; 48–64 px padding.
+- Arabic: Uthmanic Hafs, ~56–72 px at 1080p (DPI-scaled), line-height ~1.9.
+  Translation: Segoe UI Variable ~22 px, muted.
+- Chip above the panel: surah name (Arabic + English) and ayah number. Reciter name in a corner.
+- Verse change: old text fades + floats up ~8 px, new fades in; ~400 ms, eased. Hairline progress
+  bar along the panel's bottom edge. No bounce, no slide — calm.
+- Optional word highlight following the recitation.
+- Default panel tint sampled from the background's average colour; user-overridable.
+
+### Settings app
+- Left `NavigationView`: Reciters · Surahs · Background · Appearance · Translation · About.
+- Mica window, cards, Fluent controls (WPF UI).
+- Appearance page hosts the **real** verse-panel control as a live preview above the sliders.
+- Surahs: 114-item grid, search, select-all / none. Reciters: list with play-sample and download
+  state. Background: bundled gallery + "choose file".
+
+A design canvas (mockups) will be produced before Milestone 4 — see Milestone 0.
+
+---
+
+## 5. Milestones
+
+Each milestone ends with something runnable. Do not start the next until the checklist is green.
+
+### M0 — Foundation
+- [x] Project plan (this file)
+- [x] Design canvas: screensaver frame (2 backgrounds) + Appearance, Reciters, Surahs pages —
+      sources in `docs/design/`, canvas at https://claude.ai/code/artifact/2e0c7130-9a55-447e-bfd3-49f62026fea0
+- [x] Install .NET 10 SDK; confirm `dotnet --version` (10.0.401)
+- [ ] Solution + three projects scaffolded, builds clean
+- [ ] `git init`, `.gitignore`, first commit
+
+### M1 — Screensaver shell
+- [ ] Arg parsing → `/s`, `/c`, `/p`, none
+- [ ] One fullscreen topmost window per monitor, cursor hidden, black background
+- [ ] Input watchdog with launch grace period; clean shutdown
+- [ ] `/p` renders a static image into the given HWND
+- [ ] Placeholder settings window opens for `/c`
+- [ ] Publish as single-file `.scr`; install script sets registry; **appears and runs from the
+      Windows screensaver dropdown**
+- [ ] Verified: DPI scaling on mixed-DPI monitors, exit latency < 100 ms
+
+### M2 — Content pipeline (Core)
+- [ ] Quran.com v4 client: reciters, chapters, audio URL + timings (verse + word), Uthmani text,
+      translations list + text
+- [ ] Cache manager with manifest; atomic writes; resume/retry downloads
+- [ ] Download queue with progress events (consumed by settings UI later)
+- [ ] Bundled starter set: one reciter, Al-Fatiha + Juz Amma, English translation
+- [ ] Unit tests: manifest, cache paths, timing lookup, verse-key parsing
+
+### M3 — Playback + sync
+- [ ] Playlist builder: surah selection, sequential / shuffled, reciter rotation
+- [ ] `MediaPlayer` engine, gapless surah-to-surah, auto-advance
+- [ ] Verse clock: position → verse (+ word) with binary search; unit tested
+- [ ] Plain-text verse display updating in sync (no styling yet)
+- [ ] Offline behaviour: uncached items skipped, empty-cache hint shown
+
+### M4 — Visuals
+- [ ] Background layer: image + video, Ken Burns, vignette, user file support
+- [ ] Glass shader (blur, grain, tint) compiled and applied to the panel
+- [ ] Verse panel control: typography, chip, reciter label, progress hairline
+- [ ] Verse-change animation; word highlight
+- [ ] Tint sampling from background
+- [ ] Matches the design canvas
+
+### M5 — Settings app
+- [ ] WPF UI shell: NavigationView, Mica, theming
+- [ ] Pages: Reciters (with download + sample), Surahs, Background, Appearance (live preview),
+      Translation, About
+- [ ] Settings model with schema version + migration; save on change
+- [ ] Download progress surfaced; errors handled gracefully
+
+### M6 — Hardening + release
+- [ ] Locked / secure-desktop behaviour tested (audio, cache access)
+- [ ] Multi-monitor mirror option
+- [ ] Memory / GPU profile over a 1-hour run; no leaks on verse transitions
+- [ ] Installer (script → MSI), uninstall cleans registry
+- [ ] Attribution screen: Quran.com, KFGQPC font, translation licences
+- [ ] v1.0 tag
+
+---
+
+## 6. Risks & open questions
+
+| Risk | Mitigation |
+|---|---|
+| Secure-desktop restrictions break audio or cache reads | Test in M1/M6; fall back to background-only with a hint if playback fails |
+| Quran.com API changes or rate limits | Client behind an interface; cache aggressively; starter set bundled |
+| WPF `MediaElement` weak on 4K video | Cap bundled videos at 1080p; evaluate FFME if user files stutter |
+| Blur shader cost on 4K displays | Blur a downscaled capture of the panel region, not the full frame |
+| Translation licences vary | Only ship translations whose licence allows redistribution; list them in About |
+
+Open:
+- Which reciters ship in the starter set beyond the first one?
+- Do we want a "pause on this verse" hotkey, or strictly exit-on-any-key? (Default: strict.)
+
+---
+
+## 7. Decision log
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-09-12 | WPF over Tauri/WebView2 | Screensaver lifecycle: instant paint, single process, secure-desktop safety |
+| 2026-09-12 | Surah-level audio + timestamps over per-ayah files | Gapless playback; sync is a position lookup |
+| 2026-09-12 | .NET 10 over .NET 8 | .NET 8 support ends Nov 2026; .NET 10 is LTS and ships WPF Fluent baseline |
+| 2026-09-12 | WPF UI (lepo.co) for the settings app | NavigationView + Mica; built-in Fluent theme lacks composite controls |
+| 2026-09-12 | Install to Program Files, not System32 | Self-contained binary is large; registry path works either way |

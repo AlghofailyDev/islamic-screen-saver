@@ -1,0 +1,21 @@
+<Window x:Class="IslamicScreensaver.Settings.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Islamic Screensaver"
+        Width="560"
+        Height="360"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        Background="#F3F3F3">
+    <!-- Placeholder until M5 replaces this with the real WPF UI settings app. -->
+    <StackPanel Margin="32" >
+        <TextBlock Text="Islamic Screensaver" FontSize="28" FontWeight="SemiBold" />
+        <TextBlock Text="Settings are on the way. For now this window exists so Windows has something to open."
+                   Margin="0,6,0,24" Foreground="#5D5D5D" TextWrapping="Wrap" />
+        <TextBlock x:Name="MonitorSummary" Margin="0,0,0,16" Foreground="#5D5D5D" />
+        <Button Content="Run screensaver now"
+                HorizontalAlignment="Left"
+                Padding="14,6"
+                Click="RunScreensaver_Click" />
+    </StackPanel>
+</Window>
