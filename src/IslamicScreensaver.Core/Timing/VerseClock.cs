@@ -19,9 +19,16 @@ public sealed class VerseClock
 
     public VerseClock(IReadOnlyList<VerseTiming> timings)
     {
-        _timings = timings.OrderBy(t => t.FromMs).ToList();
-        _starts = _timings.Select(t => t.FromMs).ToArray();
+        _timings = timings.OrderBy(t => StartOf(t)).ToList();
+        _starts = _timings.Select(StartOf).ToArray();
     }
+
+    /// <summary>
+    /// A verse is on screen from the moment its first word is heard until the next verse's first word.
+    /// The verse-level timestamp and the first word's can differ by a few tens of milliseconds; the earlier wins.
+    /// </summary>
+    private static int StartOf(VerseTiming t) =>
+        t.Words.Count > 0 ? Math.Min(t.FromMs, t.Words[0].FromMs) : t.FromMs;
 
     public int VerseCount => _timings.Count;
 
@@ -48,7 +55,7 @@ public sealed class VerseClock
 
     /// <summary>Playback position at which <paramref name="verseIndex"/> starts, for resuming.</summary>
     public int StartOf(int verseIndex) =>
-        verseIndex < 0 || verseIndex >= _timings.Count ? 0 : _timings[verseIndex].FromMs;
+        verseIndex < 0 || verseIndex >= _starts.Length ? 0 : _starts[verseIndex];
 
     private static int LastAtOrBefore(int[] sortedStarts, int value)
     {

@@ -236,3 +236,5 @@ Open:
 | 2026-09-13 | Starter content is downloaded at install time, not bundled | 51 MB of MP3 does not belong in git or the package; `install.ps1 -Seed` runs `.scr /seed`, idempotent |
 | 2026-09-13 | Default translation: Saheeh International (id 20) | Quran.com's `quran/translations/131` (Clear Quran) no longer serves text; 20 does and is widely used |
 | 2026-09-13 | Download completeness judged by HTTP `Content-Length`, not the API's `file_size` | API metadata is stale (claimed 839,808 bytes for a 793,327-byte file) |
+| 2026-09-13 | Audio via **NAudio** (MIT) — Media Foundation decode, WASAPI output, one continuous stream — instead of WPF `MediaPlayer` | `MediaPlayer.Position` is the decoder's position (ahead of the speakers by ~a word) and drifts on VBR MP3s, which Quran.com's files are; the device's rendered-sample count is exact. Also gives true gapless surah advance |
+| 2026-09-13 | A verse is on screen from its first word's timestamp until the next verse's first word | Matches the timing data's own granularity; `SyncOffsetMs` setting exists as a manual trim |

@@ -19,6 +19,10 @@
     <ProjectReference Include="..\IslamicScreensaver.Core\IslamicScreensaver.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="3.1.0" />
+  </ItemGroup>
+
   <!--
     Windows recognises a screensaver by its .scr extension. The .NET apphost locates its DLL and
     runtimeconfig by its own file name minus extension, so renaming the published exe is all it takes.

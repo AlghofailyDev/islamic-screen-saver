@@ -1,22 +1,28 @@
 using System.IO;
-using System.Windows.Media;
 using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
 using IslamicScreensaver.Core.Playlist;
 using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Core.Timing;
+using NAudio.CoreAudioApi;
+using NAudio.MediaFoundation;
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
+using PlaybackState = IslamicScreensaver.Core.Playlist.PlaybackState;
 
 namespace IslamicScreensaver.Player;
 
 /// <summary>
-/// Plays the playlist surah by surah and reports which verse and word are being recited.
-/// Two <see cref="MediaPlayer"/>s alternate so the next surah is already opened when the current one ends.
-/// Everything here runs on the dispatcher thread.
+/// Plays the playlist as one continuous stream and reports which verse and word are being recited.
+/// The position used for lookups comes from the output device — frames it has actually rendered —
+/// so text never runs ahead of what is heard, whatever the MP3's bitrate does.
+/// Public members run on the dispatcher thread.
 /// </summary>
 internal sealed class PlaybackEngine : IDisposable
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(33);
+    private const int OutputLatencyMs = 100;
 
     private readonly ContentCache _cache;
     private readonly AppSettings _settings;
@@ -24,12 +30,12 @@ internal sealed class PlaybackEngine : IDisposable
     private readonly Dictionary<int, Chapter> _chapters;
     private readonly Dictionary<int, string> _reciterNames;
     private readonly DispatcherTimer _tick;
+    private readonly int _startIndex;
+    private readonly TimeSpan _startOffset;
 
-    private MediaPlayer _player = new();
-    private MediaPlayer _standby = new();
-    private int _index;
-    private int _resumeVerseIndex = -1;
-    private TimeSpan? _pendingSeek;
+    private PlaylistAudioSource? _source;
+    private IWavePlayer? _output;
+    private int _index = -1;
 
     // Per-surah context.
     private VerseClock _clock = new([]);
@@ -43,38 +49,20 @@ internal sealed class PlaybackEngine : IDisposable
         _cache = cache;
         _settings = settings;
         _playlist = playlist;
-        _index = Math.Clamp(startIndex, 0, Math.Max(0, playlist.Count - 1));
-        if (resumeFrom is not null && playlist.Count > 0 && playlist[_index].Surah == resumeFrom.Surah)
-            _resumeVerseIndex = resumeFrom.VerseIndex;
+        _startIndex = Math.Clamp(startIndex, 0, Math.Max(0, playlist.Count - 1));
+
+        if (resumeFrom is not null && playlist.Count > 0 && playlist[_startIndex].Surah == resumeFrom.Surah && resumeFrom.VerseIndex >= 0)
+        {
+            var item = playlist[_startIndex];
+            var clock = new VerseClock(cache.ReadTimings(item.ReciterId, item.Surah) ?? []);
+            _startOffset = TimeSpan.FromMilliseconds(clock.StartOf(resumeFrom.VerseIndex));
+        }
 
         _chapters = (cache.ReadChapters() ?? []).ToDictionary(c => c.Number);
         _reciterNames = (cache.ReadReciters() ?? []).ToDictionary(r => r.Id, r => r.DisplayName);
 
         _tick = new DispatcherTimer(DispatcherPriority.Render) { Interval = TickInterval };
         _tick.Tick += (_, _) => Poll();
-
-        foreach (var p in new[] { _player, _standby })
-        {
-            p.Volume = settings.Volume;
-            p.MediaOpened += OnMediaOpened;
-            p.MediaEnded += OnMediaEnded;
-            p.MediaFailed += OnMediaFailed;
-        }
-    }
-
-    private void OnMediaOpened(object? sender, EventArgs e)
-    {
-        if (!_disposed && ReferenceEquals(sender, _player))
-            ApplyPendingSeek();
-    }
-
-    private void ApplyPendingSeek()
-    {
-        if (_pendingSeek is { } seek)
-        {
-            _pendingSeek = null;
-            _player.Position = seek;
-        }
     }
 
     /// <summary>Raised when the verse on screen should change (including the bismillah before verse 1).</summary>
@@ -83,7 +71,10 @@ internal sealed class PlaybackEngine : IDisposable
     /// <summary>Raised when the recited word within the current verse changes. 0 = none yet.</summary>
     public event Action<int>? WordChanged;
 
-    public PlaylistItem? Current => _playlist.Count > 0 ? _playlist[_index] : null;
+    public PlaylistItem? Current => _index >= 0 && _index < _playlist.Count ? _playlist[_index] : null;
+
+    /// <summary>For diagnostics: the audio position the listener is hearing, if playing.</summary>
+    public TimeSpan? HeardPosition => Heard()?.Position;
 
     public PlaybackState? CurrentState => Current is { } item
         ? new PlaybackState { ReciterId = item.ReciterId, Surah = item.Surah, VerseIndex = Math.Max(-1, _shown.VerseIndex) }
@@ -94,79 +85,78 @@ internal sealed class PlaybackEngine : IDisposable
         if (_playlist.Count == 0)
             return;
 
-        PrepareStandby(_index);
-        SwapInStandby();
+        MediaFoundationApi.Startup();
+        _source = new PlaylistAudioSource(PathFor, _playlist.Count, _startIndex, _startOffset);
+        var volume = new VolumeSampleProvider(_source) { Volume = (float)_settings.Volume };
+
+        _output = CreateOutput();
+        _output.PlaybackStopped += OnPlaybackStopped;
+        _output.Init(volume);
+        _output.Play();
+
+        if (_startOffset > TimeSpan.Zero)
+            Log.Info($"Resuming {_playlist[_startIndex].ReciterId}/{_playlist[_startIndex].Surah} at {_startOffset.TotalSeconds:0.0}s.");
+
         _tick.Start();
-    }
-
-    private void PrepareStandby(int index)
-    {
-        var item = _playlist[index];
-        var path = _cache.AudioPath(item.ReciterId, item.Surah);
-        if (!File.Exists(path))
-        {
-            Log.Error($"Audio missing for {item.ReciterId}/{item.Surah} despite manifest; skipping.");
-            return;
-        }
-        _standby.Open(new Uri(path));
-    }
-
-    private void SwapInStandby()
-    {
-        (_player, _standby) = (_standby, _player);
-        _standby.Close();
-
-        var item = _playlist[_index];
-        _clock = new VerseClock(_cache.ReadTimings(item.ReciterId, item.Surah) ?? []);
-        _verses = _cache.ReadSurahText(item.Surah) ?? [];
-        _translation = _settings.ShowTranslation ? _cache.ReadSurahTranslation(_settings.TranslationId, item.Surah) : null;
-        _shown = new VerseClock.Position(int.MinValue, 0);
-
-        if (_resumeVerseIndex >= 0)
-        {
-            // Open() is asynchronous: seek now if the media is already opened, otherwise once it is.
-            _pendingSeek = TimeSpan.FromMilliseconds(_clock.StartOf(_resumeVerseIndex));
-            Log.Info($"Resuming at verse index {_resumeVerseIndex} ({_pendingSeek.Value.TotalSeconds:0.0}s).");
-            _resumeVerseIndex = -1;
-            if (_player.NaturalDuration.HasTimeSpan)
-                ApplyPendingSeek();
-        }
-
-        Log.Info($"Playing {item.ReciterId}/{item.Surah} ({ChapterFor(item.Surah).NameSimple}).");
-        _player.Play();
-
-        // Warm up the following surah while this one plays.
-        if (_playlist.Count > 1)
-            PrepareStandby((_index + 1) % _playlist.Count);
-
         Poll();
     }
 
-    private void OnMediaEnded(object? sender, EventArgs e)
+    private string? PathFor(int index)
     {
-        if (_disposed || !ReferenceEquals(sender, _player))
-            return;
+        var item = _playlist[index];
+        var path = _cache.AudioPath(item.ReciterId, item.Surah);
+        if (File.Exists(path))
+            return path;
 
-        _index = (_index + 1) % _playlist.Count;
-        SwapInStandby();
+        Log.Error($"Audio missing for {item.ReciterId}/{item.Surah} despite manifest; skipping.");
+        return null;
     }
 
-    private void OnMediaFailed(object? sender, ExceptionEventArgs e)
+    private static IWavePlayer CreateOutput()
     {
-        if (_disposed)
-            return;
+        try
+        {
+            return new WasapiPlayerBuilder()
+                .WithSharedMode()
+                .WithEventSync()
+                .WithLatency(OutputLatencyMs)
+                .WithCategory(AudioStreamCategory.Media)
+                .Build();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("WASAPI output unavailable; falling back to WaveOut.", ex);
+            return new WaveOut { BufferMilliseconds = OutputLatencyMs };
+        }
+    }
 
-        Log.Error($"Playback failed for {(ReferenceEquals(sender, _player) ? "current" : "standby")} surah.", e.ErrorException);
-        if (ReferenceEquals(sender, _player))
-            OnMediaEnded(sender, EventArgs.Empty);
+    private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
+    {
+        if (!_disposed && e.Exception is not null)
+            Log.Error("Audio output stopped unexpectedly.", e.Exception);
+    }
+
+    /// <summary>Playback position of the audio the listener is hearing right now.</summary>
+    private (int ItemIndex, TimeSpan Position)? Heard()
+    {
+        if (_output is not { } output || _source is null || output.OutputWaveFormat is not { } format)
+            return null;
+
+        var bytes = ((IWavePosition)output).GetPosition();
+        var seconds = (double)bytes / format.AverageBytesPerSecond;
+        return _source.Locate((long)(seconds * PlaylistAudioSource.SampleRate));
     }
 
     private void Poll()
     {
-        if (_disposed || _playlist.Count == 0)
+        if (_disposed || Heard() is not { } heard)
             return;
 
-        var position = _clock.Lookup((int)_player.Position.TotalMilliseconds);
+        if (heard.ItemIndex != _index)
+            EnterSurah(heard.ItemIndex);
+
+        var ms = (int)heard.Position.TotalMilliseconds - _settings.SyncOffsetMs;
+        var position = _clock.Lookup(ms);
         if (position.VerseIndex != _shown.VerseIndex)
         {
             _shown = position;
@@ -178,6 +168,17 @@ internal sealed class PlaybackEngine : IDisposable
             _shown = position;
             WordChanged?.Invoke(position.WordPosition);
         }
+    }
+
+    private void EnterSurah(int index)
+    {
+        _index = index;
+        var item = _playlist[index];
+        _clock = new VerseClock(_cache.ReadTimings(item.ReciterId, item.Surah) ?? []);
+        _verses = _cache.ReadSurahText(item.Surah) ?? [];
+        _translation = _settings.ShowTranslation ? _cache.ReadSurahTranslation(_settings.TranslationId, item.Surah) : null;
+        _shown = new VerseClock.Position(int.MinValue, 0);
+        Log.Info($"Playing {item.ReciterId}/{item.Surah} ({ChapterFor(item.Surah).NameSimple}).");
     }
 
     private VerseDisplay BuildDisplay(int verseIndex)
@@ -212,7 +213,15 @@ internal sealed class PlaybackEngine : IDisposable
 
         _disposed = true;
         _tick.Stop();
-        _player.Close();
-        _standby.Close();
+        try
+        {
+            _output?.Stop();
+            _output?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Error stopping audio output.", ex);
+        }
+        _source?.Dispose();
     }
 }

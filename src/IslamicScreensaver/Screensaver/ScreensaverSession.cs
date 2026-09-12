@@ -112,9 +112,10 @@ internal sealed class ScreensaverSession
 
         _exiting = true;
         var state = _engine?.CurrentState;
+        var heard = _engine?.HeardPosition;
         state?.Save();
         _engine?.Dispose();
-        Log.Info($"Screensaver exiting ({reason}) after {_clock.Elapsed:mm\\:ss\\.fff}{(state is null ? "" : $" at {state.ReciterId}/{state.Surah} verse index {state.VerseIndex}")}.");
+        Log.Info($"Screensaver exiting ({reason}) after {_clock.Elapsed:mm\\:ss\\.fff}{(state is null ? "" : $" at {state.ReciterId}/{state.Surah} verse index {state.VerseIndex}, audio position {heard?.TotalSeconds:0.00}s")}.");
         Application.Current.Shutdown();
     }
 }

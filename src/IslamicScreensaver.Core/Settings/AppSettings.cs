@@ -58,6 +58,12 @@ public sealed class AppSettings
     /// <summary>0..1.</summary>
     public double Volume { get; set; } = 0.8;
 
+    /// <summary>
+    /// Manual trim applied to the timing files: positive delays the on-screen text, negative advances it.
+    /// The audio clock is sample-accurate, so this only compensates a bias in a reciter's timestamps.
+    /// </summary>
+    public int SyncOffsetMs { get; set; }
+
     public bool ShowTranslation { get; set; } = true;
 
     /// <summary>Quran.com translation resource id.</summary>
@@ -74,6 +80,7 @@ public sealed class AppSettings
     public void Normalize()
     {
         Volume = double.IsFinite(Volume) ? Math.Clamp(Volume, 0, 1) : 0.8;
+        SyncOffsetMs = Math.Clamp(SyncOffsetMs, -2000, 2000);
         Panel.Blur = double.IsFinite(Panel.Blur) ? Math.Clamp(Panel.Blur, 0, 60) : 24;
         Panel.Grain = double.IsFinite(Panel.Grain) ? Math.Clamp(Panel.Grain, 0, 1) : 0.35;
         Panel.TintOpacity = double.IsFinite(Panel.TintOpacity) ? Math.Clamp(Panel.TintOpacity, 0, 1) : 0.42;

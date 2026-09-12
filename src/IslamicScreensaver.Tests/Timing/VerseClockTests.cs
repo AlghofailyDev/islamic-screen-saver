@@ -31,7 +31,9 @@ public class VerseClockTests
     [Theory]
     [InlineData(1000, 0, 1)]
     [InlineData(2500, 0, 2)]
-    [InlineData(6090, 1, 1)]   // exactly at verse start; first word segment began slightly earlier
+    [InlineData(6024, 0, 2)]   // just before verse 2's first word: still verse 1
+    [InlineData(6025, 1, 1)]   // verse 2 begins with its first word, 65 ms before the verse-level timestamp
+    [InlineData(6090, 1, 1)]
     [InlineData(7900, 1, 3)]
     [InlineData(11600, 1, 4)]  // past the last word's end but still inside the verse: last word stays lit
     [InlineData(11680, 2, 0)]  // verse with no word timings
@@ -45,7 +47,7 @@ public class VerseClockTests
     public void StartOf_ReturnsVerseStart_OrZeroWhenOutOfRange()
     {
         var clock = Clock();
-        Assert.Equal(6090, clock.StartOf(1));
+        Assert.Equal(6025, clock.StartOf(1));
         Assert.Equal(0, clock.StartOf(-1));
         Assert.Equal(0, clock.StartOf(3));
     }
