@@ -218,6 +218,18 @@ Today's Reciters page mixes two jobs: *what is available online* and *what is on
 - [ ] Keep working offline: Library is fully usable with no network; Reciters page shows a friendly
       "connect to browse" state
 
+### M5c — Audio page: output device + playback (requested 2026-09-13)
+- [ ] New **Audio** page in Settings; Volume and Text timing move here from Reciters
+- [ ] **Output device** picker: "System default" or a specific render endpoint, listed live via
+      NAudio's `MMDeviceEnumerator` (active devices only, friendly names). Use case: headset is the
+      Windows default, but the screensaver should play through the speakers
+- [ ] Persisted as the endpoint id (`AppSettings.OutputDeviceId`, null = default); resolved at
+      launch, falling back to the default device — with a log line — if the saved one is missing/unplugged
+- [ ] `PlaybackEngine` builds the WASAPI player with `.WithDevice(...)`; the Listen buttons in
+      Settings use the same device so what you test is what you get
+- [ ] "Test" button on the page plays a short cached sample through the chosen device
+- [ ] Optional: follow device changes at runtime (default-device routing when "System default" is chosen)
+
 ### M7 — Localisation + dark mode (requested 2026-09-13)
 - [ ] Settings app strings moved to resource dictionaries; **Arabic** UI with full RTL layout
       (`FlowDirection="RightToLeft"` on the window, mirrored nav pane and icons, Arabic UI font)
