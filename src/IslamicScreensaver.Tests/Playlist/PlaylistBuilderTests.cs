@@ -38,8 +38,47 @@ public class PlaylistBuilderTests
 
         var playlist = PlaylistBuilder.Build(settings, cache, [7, 2]);
 
-        // 1 → 7, 2 → 2's turn but missing so 7, 3 → 2, 4 → 7
-        Assert.Equal([new(7, 1), new(7, 2), new(2, 3), new(7, 4)], playlist);
+        // Two reciters → two passes; the turn carries over so pass 2 starts with reciter 2.
+        // Pass 1: 1 → 7, 2 → 2's turn but missing so 7, 3 → 2, 4 → 7.  Pass 2: 1 → 2, 2 → 7, 3 → 2, 4 → 7.
+        Assert.Equal(
+            [new(7, 1), new(7, 2), new(2, 3), new(7, 4), new(2, 1), new(7, 2), new(2, 3), new(7, 4)],
+            playlist);
+    }
+
+    [Fact]
+    public void Rotation_SingleSurah_AlternatesReciters()
+    {
+        var settings = new AppSettings { ReciterIds = [7, 2, 3], RotateReciters = true, SelectedSurahs = [112] };
+        var cache = Cache(new() { [7] = [112], [2] = [112], [3] = [112] });
+
+        var playlist = PlaylistBuilder.Build(settings, cache, [7, 2, 3]);
+
+        Assert.Equal([new(7, 112), new(2, 112), new(3, 112)], playlist);
+    }
+
+    [Fact]
+    public void Rotation_NeverRepeatsASurahWithinAPass()
+    {
+        var settings = new AppSettings { ReciterIds = [7, 2], RotateReciters = true, SelectedSurahs = [1, 2, 3] };
+        var cache = Cache(new() { [7] = [1, 2, 3], [2] = [1, 2, 3] });
+
+        var playlist = PlaylistBuilder.Build(settings, cache, [7, 2]);
+
+        Assert.Equal(6, playlist.Count);
+        Assert.Equal([1, 2, 3], playlist.Take(3).Select(p => p.Surah));
+        Assert.Equal([1, 2, 3], playlist.Skip(3).Select(p => p.Surah));
+        // Each surah is heard from both reciters across the two passes.
+        foreach (var surah in new[] { 1, 2, 3 })
+            Assert.Equal([2, 7], playlist.Where(p => p.Surah == surah).Select(p => p.ReciterId).Order());
+    }
+
+    [Fact]
+    public void StartIndex_PrefersSameReciter_ThenSameSurah()
+    {
+        var playlist = new List<PlaylistItem> { new(7, 1), new(7, 2), new(2, 1), new(2, 2) };
+
+        Assert.Equal(2, PlaylistBuilder.StartIndex(playlist, new AppSettings(), new PlaybackState { ReciterId = 2, Surah = 1 }));
+        Assert.Equal(0, PlaylistBuilder.StartIndex(playlist, new AppSettings(), new PlaybackState { ReciterId = 99, Surah = 1 }));
     }
 
     [Fact]

@@ -30,40 +30,51 @@ public static class PlaylistBuilder
         var surahs = (settings.SelectedSurahs ?? AllSurahs)
             .Where(s => available.Values.Any(set => set.Contains(s)))
             .ToList();
+        if (surahs.Count == 0)
+            return [];
 
-        if (settings.Order == PlayOrder.Shuffled)
-            Shuffle(surahs, random ?? Random.Shared);
-
+        var rng = random ?? Random.Shared;
         var rotate = settings.RotateReciters && reciters.Count > 1;
+
+        // One pass per rotating reciter, with the turn carried across passes: every surah is heard from
+        // each reciter in turn over successive passes, while inside a pass no surah repeats. The engine
+        // loops the whole list, so a single selected surah alternates reciters instead of looping one.
+        var passes = rotate ? reciters.Count : 1;
         var turn = 0;
-        var playlist = new List<PlaylistItem>(surahs.Count);
+        var playlist = new List<PlaylistItem>(surahs.Count * passes);
 
-        foreach (var surah in surahs)
+        for (var pass = 0; pass < passes; pass++)
         {
-            int reciter;
-            if (rotate)
-            {
-                // Whose turn it is, skipping anyone who does not have this surah, so the rotation
-                // stays fair without ever stalling on a missing download.
-                var picked = -1;
-                for (var i = 0; i < reciters.Count; i++)
-                {
-                    var candidate = reciters[(turn + i) % reciters.Count];
-                    if (available[candidate].Contains(surah))
-                    {
-                        picked = candidate;
-                        turn = (turn + i + 1) % reciters.Count;
-                        break;
-                    }
-                }
-                reciter = picked;
-            }
-            else
-            {
-                reciter = reciters.First(id => available[id].Contains(surah));
-            }
+            if (settings.Order == PlayOrder.Shuffled)
+                Shuffle(surahs, rng);
 
-            playlist.Add(new PlaylistItem(reciter, surah));
+            foreach (var surah in surahs)
+            {
+                int reciter;
+                if (rotate)
+                {
+                    // Whose turn it is, skipping anyone who does not have this surah, so the rotation
+                    // stays fair without ever stalling on a missing download.
+                    var picked = -1;
+                    for (var i = 0; i < reciters.Count; i++)
+                    {
+                        var candidate = reciters[(turn + i) % reciters.Count];
+                        if (available[candidate].Contains(surah))
+                        {
+                            picked = candidate;
+                            turn = (turn + i + 1) % reciters.Count;
+                            break;
+                        }
+                    }
+                    reciter = picked;
+                }
+                else
+                {
+                    reciter = reciters.First(id => available[id].Contains(surah));
+                }
+
+                playlist.Add(new PlaylistItem(reciter, surah));
+            }
         }
 
         return playlist;
@@ -75,6 +86,13 @@ public static class PlaylistBuilder
         if (playlist.Count == 0 || settings.Order != PlayOrder.Sequential || !settings.ResumeWhereLeftOff || lastState is null)
             return 0;
 
+        // Prefer the exact item (same reciter) so a multi-pass rotation carries on where it stopped;
+        // fall back to the first occurrence of the surah if that reciter is no longer in the list.
+        for (var i = 0; i < playlist.Count; i++)
+        {
+            if (playlist[i].Surah == lastState.Surah && playlist[i].ReciterId == lastState.ReciterId)
+                return i;
+        }
         for (var i = 0; i < playlist.Count; i++)
         {
             if (playlist[i].Surah == lastState.Surah)
