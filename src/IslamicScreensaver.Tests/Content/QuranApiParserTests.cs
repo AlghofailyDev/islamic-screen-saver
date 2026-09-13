@@ -34,6 +34,24 @@ public class QuranApiParserTests
     }
 
     [Fact]
+    public void ParseSurahAudio_AcceptsFloatSegmentTimes()
+    {
+        // Reciter 2's payload: segment times as floats, and a negative "duration" we ignore.
+        const string json = """
+            {"audio_file":{"id":7470,"chapter_id":1,"file_size":1132672.0,"format":"mp3",
+             "audio_url":"https://download.quranicaudio.com/qdc/abdul_baset/murattal/1.mp3",
+             "timestamps":[{"verse_key":"1:1","timestamp_from":0,"timestamp_to":4370,"duration":-4370,
+               "segments":[[1,0.0,1040.0],[2,1040.0,1660.0],[3,1660.4,2610.6]]}]}}
+            """;
+
+        var audio = QuranApiParser.ParseSurahAudio(json, reciterId: 2, surah: 1);
+
+        var words = Assert.Single(audio.Timings).Words;
+        Assert.Equal(new WordSegment(1, 0, 1040), words[0]);
+        Assert.Equal(new WordSegment(3, 1660, 2611), words[2]);
+    }
+
+    [Fact]
     public void ParseSurahAudio_WithoutAudioUrl_Throws()
     {
         Assert.Throws<FormatException>(() => QuranApiParser.ParseSurahAudio("""{"audio_file":{"id":1}}""", 7, 1));

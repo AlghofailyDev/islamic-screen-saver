@@ -61,7 +61,8 @@ public static class QuranApiParser
                 t.TimestampTo,
                 (t.Segments ?? [])
                     .Where(s => s.Length >= 3)
-                    .Select(s => new WordSegment(s[0], s[1], s[2]))
+                    // Segments are [wordPosition, fromMs, toMs]; some reciters carry the times as floats.
+                    .Select(s => new WordSegment((int)Math.Round(s[0]), (int)Math.Round(s[1]), (int)Math.Round(s[2])))
                     .ToList()))
             .OrderBy(t => t.Key)
             .ToList();
@@ -162,7 +163,7 @@ public static class QuranApiParser
         [JsonPropertyName("verse_key")] public string? VerseKey { get; set; }
         [JsonPropertyName("timestamp_from")] public int TimestampFrom { get; set; }
         [JsonPropertyName("timestamp_to")] public int TimestampTo { get; set; }
-        public List<int[]>? Segments { get; set; }
+        public List<double[]>? Segments { get; set; }
     }
 
     private sealed class VersesDto
