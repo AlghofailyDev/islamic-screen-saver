@@ -2,20 +2,74 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Islamic Screensaver"
-        Width="560"
-        Height="360"
+        Width="1100"
+        Height="760"
+        MinWidth="900"
+        MinHeight="600"
         WindowStartupLocation="CenterScreen"
-        FontFamily="Segoe UI Variable Text, Segoe UI"
-        Background="#F3F3F3">
-    <!-- Placeholder until M5 replaces this with the real WPF UI settings app. -->
-    <StackPanel Margin="32" >
-        <TextBlock Text="Islamic Screensaver" FontSize="28" FontWeight="SemiBold" />
-        <TextBlock Text="Settings are on the way. For now this window exists so Windows has something to open."
-                   Margin="0,6,0,24" Foreground="#5D5D5D" TextWrapping="Wrap" />
-        <TextBlock x:Name="MonitorSummary" Margin="0,0,0,16" Foreground="#5D5D5D" />
-        <Button Content="Run screensaver now"
-                HorizontalAlignment="Left"
-                Padding="14,6"
-                Click="RunScreensaver_Click" />
-    </StackPanel>
+        ThemeMode="Light"
+        FontFamily="{StaticResource UiFont}"
+        Background="{StaticResource WindowBackgroundBrush}"
+        TextOptions.TextFormattingMode="Ideal">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Navigation pane -->
+        <Grid Grid.Column="0" Margin="8,8,8,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Orientation="Horizontal" Margin="12,10,0,18">
+                <Border Width="16" Height="16" CornerRadius="4" Background="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="Islamic Screensaver" Style="{StaticResource Body}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <ListBox x:Name="Nav"
+                     Grid.Row="1"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ItemContainerStyle="{StaticResource NavItem}"
+                     SelectionChanged="Nav_SelectionChanged">
+                <ListBoxItem Tag="reciters">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE720;" Style="{StaticResource Icon}" /><TextBlock Text="Reciters" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="surahs">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8F1;" Style="{StaticResource Icon}" /><TextBlock Text="Surahs" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="background">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B9;" Style="{StaticResource Icon}" /><TextBlock Text="Background" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="appearance">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE790;" Style="{StaticResource Icon}" /><TextBlock Text="Appearance" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="translation">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8C1;" Style="{StaticResource Icon}" /><TextBlock Text="Translation" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                </ListBoxItem>
+            </ListBox>
+
+            <StackPanel Grid.Row="2">
+                <ListBox x:Name="FooterNav"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ItemContainerStyle="{StaticResource NavItem}"
+                         SelectionChanged="Nav_SelectionChanged">
+                    <ListBoxItem Tag="about">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE946;" Style="{StaticResource Icon}" /><TextBlock Text="About" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                    </ListBoxItem>
+                </ListBox>
+                <Button Content="Run screensaver now" Style="{StaticResource AccentButton}" Margin="4,8,4,0" HorizontalAlignment="Stretch" Click="RunScreensaver_Click" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Page host -->
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="40,24,40,24">
+            <ContentControl x:Name="PageHost" />
+        </ScrollViewer>
+    </Grid>
 </Window>

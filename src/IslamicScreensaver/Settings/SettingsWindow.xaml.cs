@@ -1,26 +1,58 @@
 using System.Diagnostics;
 using System.Windows;
-using IslamicScreensaver.Interop;
+using System.Windows.Controls;
+using IslamicScreensaver.Settings.Pages;
 
 namespace IslamicScreensaver.Settings;
 
 public partial class SettingsWindow : Window
 {
+    private readonly SettingsContext _context = new();
+    private readonly Dictionary<string, UserControl> _pages = new();
+    private bool _navigating;
+
     public SettingsWindow()
     {
         InitializeComponent();
+        Closing += (_, _) => { _context.Downloads.CancelAll(); _context.Flush(); };
+        Loaded += async (_, _) =>
+        {
+            Nav.SelectedIndex = 0;
+            if (!_context.HasCatalog)
+                await _context.RefreshCatalogAsync();
+        };
+    }
 
-        var monitors = DisplayMonitor.All();
-        MonitorSummary.Text = string.Join(Environment.NewLine,
-            monitors.Select(m => $"{m.DeviceName}: {m.Bounds.Width}×{m.Bounds.Height} at ({m.Bounds.Left}, {m.Bounds.Top}){(m.IsPrimary ? "  — primary" : "")}"));
+    private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_navigating || sender is not ListBox list || list.SelectedItem is not ListBoxItem item || item.Tag is not string key)
+            return;
+
+        // Two lists share one selection; clear the other without re-entering.
+        _navigating = true;
+        (ReferenceEquals(list, Nav) ? FooterNav : Nav).SelectedItem = null;
+        _navigating = false;
+
+        if (!_pages.TryGetValue(key, out var page))
+        {
+            page = key switch
+            {
+                "reciters" => new RecitersPage(_context),
+                "surahs" => new SurahsPage(_context),
+                "background" => new BackgroundPage(_context),
+                "appearance" => new AppearancePage(_context),
+                "translation" => new TranslationPage(_context),
+                _ => new AboutPage(_context),
+            };
+            _pages[key] = page;
+        }
+        PageHost.Content = page;
     }
 
     private void RunScreensaver_Click(object sender, RoutedEventArgs e)
     {
-        var self = Environment.ProcessPath;
-        if (self is null)
-            return;
-
-        Process.Start(new ProcessStartInfo(self, "/s") { UseShellExecute = false });
+        _context.Flush();
+        if (Environment.ProcessPath is { } self)
+            Process.Start(new ProcessStartInfo(self, "/s") { UseShellExecute = false });
     }
 }

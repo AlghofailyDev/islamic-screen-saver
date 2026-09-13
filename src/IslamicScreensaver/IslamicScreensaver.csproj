@@ -13,6 +13,8 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <!-- Pre-compiled native code cuts cold-start noticeably, which is the whole game for a screensaver. -->
     <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- WPF0001: Window.ThemeMode (the built-in Fluent theme) is still flagged experimental. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

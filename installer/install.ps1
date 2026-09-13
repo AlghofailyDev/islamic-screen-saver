@@ -32,7 +32,8 @@ $scr = Join-Path $installDir "IslamicScreensaver.scr"
 
 if (-not $SkipPublish) {
     # Running instances (fullscreen, settings, or the dialog's preview) hold the files open; stop them first.
-    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and ($_.Path -ieq $scr) } | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-CimInstance Win32_Process -Filter "Name = 'IslamicScreensaver.scr'" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Milliseconds 500
 
     Write-Host "Publishing ($Configuration, self-contained win-x64) to $installDir ..."
     dotnet publish $project -c $Configuration -r win-x64 --self-contained true -o $installDir --nologo

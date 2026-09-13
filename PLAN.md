@@ -190,15 +190,19 @@ Each milestone ends with something runnable. Do not start the next until the che
 - [x] Verse-change crossfade (fade + 8 px float); word highlight
 - [x] Tint sampling from a user image (darkened average colour); bundled visuals carry their own tint
 - [x] Matches the design canvas (screenshot-verified on 2560×1440, 2026-09-13)
-- [ ] User to review: colours, sizes, night background, a user image/video background
+- [x] User reviewed 2026-09-13: "so far so good"; minor tweaks to come later
 - [ ] Optional: KFGQPC Uthmanic Hafs font in `assets/fonts/` (auto-detected; system Arabic faces otherwise)
 
 ### M5 — Settings app
-- [ ] WPF UI shell: NavigationView, Mica, theming
-- [ ] Pages: Reciters (with download + sample), Surahs, Background, Appearance (live preview),
-      Translation, About
-- [ ] Settings model with schema version + migration; save on change
-- [ ] Download progress surfaced; errors handled gracefully
+- [x] Shell: nav pane, Fluent theme (`Window.ThemeMode`), in-house `SettingsCard` / toggle switch / buttons (`Settings/Theme.xaml`)
+- [x] Pages: Reciters (selection, rotation, download per reciter, listen, volume, text timing), Surahs
+      (grid, search, select all/clear, order, resume), Background (bundled thumbnails, own file, mirror),
+      Appearance (live preview hosting the real panel, sliders, colours, reset), Translation (language →
+      translation, download), About (attribution, cache/settings/log folders, clear cache)
+- [x] Settings saved on change (debounced 400 ms) through `SettingsStore`
+- [x] Download manager: one job at a time, per-row progress, cancel, failures surfaced
+- [x] All six pages screenshot-verified 2026-09-13
+- [ ] User to review the settings app; feedback folds into M6
 
 ### M6 — Hardening + release
 - [ ] Locked / secure-desktop behaviour tested (audio, cache access)
@@ -245,3 +249,4 @@ Open:
 | 2026-09-13 | A verse is on screen from its first word's timestamp until the next verse's first word | Matches the timing data's own granularity; `SyncOffsetMs` setting exists as a manual trim |
 | 2026-09-13 | Glass effect via WPF `BlurEffect` + `VisualBrush`, not a custom HLSL shader | Same GPU path, no `fxc` build dependency; grain is a tiled noise brush, tint a colour layer |
 | 2026-09-13 | Bundled backgrounds are procedural (gradients, tiled drawings), not image files | Resolution-independent, tiny, and no asset licensing to track |
+| 2026-09-13 | Settings app on .NET 10's built-in Fluent theme + a few in-house controls (nav pane, toggle switch, settings card), superseding WPF UI (lepo.co) | Covers the design with one fewer dependency; the pieces WPF UI added (NavigationView, ToggleSwitch) are small to write and fully under our control |
