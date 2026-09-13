@@ -9,11 +9,24 @@ public partial class SettingsWindow : Window
 {
     private readonly SettingsContext _context = new();
     private readonly Dictionary<string, UserControl> _pages = new();
+    private readonly Stack<object?> _detailStack = new();
     private bool _navigating;
 
     public SettingsWindow()
     {
         InitializeComponent();
+        _context.NavigateTo = page =>
+        {
+            _detailStack.Push(PageHost.Content);
+            PageHost.Content = page;
+            PageScroll.ScrollToTop();
+        };
+        _context.NavigateBack = () =>
+        {
+            if (_detailStack.Count > 0)
+                PageHost.Content = _detailStack.Pop();
+            PageScroll.ScrollToTop();
+        };
         Closing += (_, _) => { _context.Downloads.CancelAll(); _context.Flush(); };
         Loaded += async (_, _) =>
         {
@@ -33,6 +46,7 @@ public partial class SettingsWindow : Window
         (ReferenceEquals(list, Nav) ? FooterNav : Nav).SelectedItem = null;
         _navigating = false;
 
+        _detailStack.Clear();
         if (!_pages.TryGetValue(key, out var page))
         {
             page = key switch

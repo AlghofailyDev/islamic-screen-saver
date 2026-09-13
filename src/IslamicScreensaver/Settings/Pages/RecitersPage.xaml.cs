@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
@@ -19,7 +20,6 @@ public partial class RecitersPage : UserControl
         InitializeComponent();
 
         _ctx.CatalogChanged += Rebuild;
-        _ctx.SettingsChanged += UpdateScope;
         _ctx.Downloads.Changed += (key, progress) =>
         {
             foreach (var row in _rows.Where(r => r.JobKey == key))
@@ -48,18 +48,52 @@ public partial class RecitersPage : UserControl
         Rebuild();
     }
 
+    /// <summary>Called when returning from a reciter's page so download counts are current.</summary>
+    public void RefreshStatuses()
+    {
+        foreach (var row in _rows)
+            row.RefreshStatus();
+        UpdateStorage();
+    }
+
     private void Rebuild()
     {
         _rows.Clear();
         var selected = _ctx.Settings.ReciterIds;
         foreach (var reciter in _ctx.Reciters)
-            _rows.Add(new ReciterRow(_ctx, reciter, selected.Contains(reciter.Id), OnSelectionChanged));
+            _rows.Add(new ReciterRow(_ctx, reciter, selected.Contains(reciter.Id), OnSelectionChanged, Open));
 
         // Selected first, then the rest alphabetically — the ones in use are what you look for.
         List.ItemsSource = _rows.OrderByDescending(r => r.IsSelected).ThenBy(r => r.Name).ToList();
         EmptyText.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        UpdateScope();
+        ApplySearch();
         UpdateStorage();
+    }
+
+    private void Open(ReciterRow row)
+    {
+        _ctx.Samples.Stop();
+        _ctx.NavigateTo?.Invoke(new ReciterDetailPage(_ctx, row.Reciter, RefreshStatuses));
+    }
+
+    private void Row_Click(object sender, MouseButtonEventArgs e)
+    {
+        // Controls inside the row (checkbox, buttons) handle their own clicks; anywhere else opens the reciter.
+        if (e.OriginalSource is DependencyObject source && HasInteractiveAncestor(source, (FrameworkElement)sender))
+            return;
+        if (sender is FrameworkElement { DataContext: ReciterRow row })
+            Open(row);
+    }
+
+    private static bool HasInteractiveAncestor(DependencyObject node, FrameworkElement stopAt)
+    {
+        while (node is not null && !ReferenceEquals(node, stopAt))
+        {
+            if (node is System.Windows.Controls.Primitives.ButtonBase)
+                return true;
+            node = VisualTreeHelper.GetParent(node);
+        }
+        return false;
     }
 
     private void OnSelectionChanged()
@@ -68,13 +102,20 @@ public partial class RecitersPage : UserControl
         _ctx.Changed();
     }
 
-    private void UpdateScope()
+    private void ApplySearch()
     {
-        var count = _ctx.EffectiveSurahs.Count;
-        ScopeText.Text = count == 114 ? "Downloads cover all 114 surahs" : $"Downloads cover the {count} selected surahs";
+        var query = Search.Text.Trim();
+        SearchHint.Visibility = query.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var visible = 0;
         foreach (var row in _rows)
-            row.RefreshStatus();
+        {
+            row.IsVisible = row.Matches(query);
+            if (row.IsVisible) visible++;
+        }
+        CountText.Text = _rows.Count == 0 ? string.Empty : query.Length == 0 ? $"{_rows.Count} reciters" : $"{visible} of {_rows.Count}";
     }
+
+    private void Search_Changed(object sender, TextChangedEventArgs e) => ApplySearch();
 
     private void UpdateStorage()
     {
@@ -124,7 +165,7 @@ public partial class RecitersPage : UserControl
     }
 }
 
-/// <summary>One reciter in the list: selection, download state and a listen button.</summary>
+/// <summary>One reciter in the list: playback selection, download state, listen and open buttons.</summary>
 internal sealed class ReciterRow : ObservableObject
 {
     private static readonly (string Bg, string Fg)[] AvatarPalette =
@@ -136,16 +177,17 @@ internal sealed class ReciterRow : ObservableObject
     private readonly SettingsContext _ctx;
     private readonly Action _selectionChanged;
     private bool _isSelected;
+    private bool _isVisible = true;
     private string _statusText = string.Empty;
     private bool _isComplete;
     private bool _isDownloading;
     private double _progress;
-    private string _downloadLabel = "Download";
 
-    public ReciterRow(SettingsContext ctx, Reciter reciter, bool isSelected, Action selectionChanged)
+    public ReciterRow(SettingsContext ctx, Reciter reciter, bool isSelected, Action selectionChanged, Action<ReciterRow> open)
     {
         _ctx = ctx;
         _selectionChanged = selectionChanged;
+        Reciter = reciter;
         Id = reciter.Id;
         Name = reciter.Name;
         Subtitle = reciter.Style ?? "Recitation";
@@ -157,13 +199,14 @@ internal sealed class ReciterRow : ObservableObject
         AvatarForeground = (Brush)new BrushConverter().ConvertFromString(palette.Fg)!;
         Initials = string.Concat(reciter.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
 
-        DownloadCommand = new RelayCommand(Download);
+        OpenCommand = new RelayCommand(() => open(this));
         PlayCommand = new RelayCommand(Play);
 
         OnJob(ctx.Downloads.ProgressOf(JobKey));
         RefreshStatus();
     }
 
+    public Reciter Reciter { get; }
     public int Id { get; }
     public string Name { get; }
     public string Subtitle { get; }
@@ -171,7 +214,7 @@ internal sealed class ReciterRow : ObservableObject
     public Brush AvatarBrush { get; }
     public Brush AvatarForeground { get; }
     public string JobKey { get; }
-    public RelayCommand DownloadCommand { get; }
+    public RelayCommand OpenCommand { get; }
     public RelayCommand PlayCommand { get; }
 
     public bool IsSelected
@@ -184,29 +227,26 @@ internal sealed class ReciterRow : ObservableObject
         }
     }
 
+    public bool IsVisible { get => _isVisible; set => Set(ref _isVisible, value); }
     public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
     public bool IsComplete { get => _isComplete; private set => Set(ref _isComplete, value); }
     public bool IsDownloading { get => _isDownloading; private set => Set(ref _isDownloading, value); }
     public double Progress { get => _progress; private set => Set(ref _progress, value); }
-    public string DownloadLabel { get => _downloadLabel; private set => Set(ref _downloadLabel, value); }
-    public bool ShowDownload => !IsComplete || IsDownloading;
     public string PlayGlyph => _ctx.Samples.PlayingKey == JobKey ? "\uE71A" : "\uE768"; // Stop / Play (Segoe Fluent Icons)
+
+    public bool Matches(string query) =>
+        query.Length == 0
+        || Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || Subtitle.Contains(query, StringComparison.OrdinalIgnoreCase);
 
     public void RefreshStatus()
     {
         if (IsDownloading)
             return;
 
-        var wanted = _ctx.EffectiveSurahs;
-        var have = _ctx.Cache.CachedSurahsFor(Id);
-        var missing = wanted.Count(s => !have.Contains(s));
-
-        IsComplete = missing == 0;
-        StatusText = missing == 0
-            ? (wanted.Count == 114 ? "All 114 surahs" : $"All {wanted.Count} selected surahs")
-            : have.Count == 0 ? "Not downloaded" : $"{wanted.Count - missing} of {wanted.Count} surahs";
-        DownloadLabel = missing == 0 ? "Downloaded" : have.Count == 0 ? "Download" : $"Download {missing} more";
-        Raise(nameof(ShowDownload));
+        var have = _ctx.Cache.CachedSurahsFor(Id).Count;
+        IsComplete = have == 114;
+        StatusText = have == 0 ? "Nothing downloaded" : have == 114 ? "All 114 surahs" : $"{have} of 114 downloaded";
     }
 
     public void OnJob(JobProgress? progress)
@@ -222,28 +262,16 @@ internal sealed class ReciterRow : ObservableObject
         IsDownloading = true;
         Progress = progress.Fraction;
         StatusText = progress.CurrentItem is null ? "Finishing…" : $"Downloading {progress.CurrentItem}  ·  {progress.Done} of {progress.Total}";
-        DownloadLabel = "Cancel";
-        Raise(nameof(ShowDownload));
     }
 
     public void RefreshPlaying() => Raise(nameof(PlayGlyph));
-
-    private void Download()
-    {
-        if (IsDownloading)
-        {
-            _ctx.Downloads.CancelAll();
-            return;
-        }
-        _ctx.Downloads.EnqueueReciter(Id, _ctx.EffectiveSurahs);
-    }
 
     private void Play()
     {
         var cached = _ctx.Cache.CachedSurahsFor(Id);
         if (cached.Count == 0)
         {
-            MessageBox.Show("Download something from this reciter first, then you can listen.", "Nothing cached yet", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("Download something from this reciter first, then you can listen.", "Nothing downloaded yet", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         // Prefer a short surah so the sample is representative but brief.

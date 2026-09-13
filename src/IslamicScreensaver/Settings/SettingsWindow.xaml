@@ -68,7 +68,7 @@
         </Grid>
 
         <!-- Page host -->
-        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="40,24,40,24">
+        <ScrollViewer x:Name="PageScroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="40,24,40,24">
             <ContentControl x:Name="PageHost" />
         </ScrollViewer>
     </Grid>

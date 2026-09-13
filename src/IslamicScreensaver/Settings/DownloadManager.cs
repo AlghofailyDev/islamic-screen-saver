@@ -5,7 +5,7 @@ using IslamicScreensaver.Core.Content;
 namespace IslamicScreensaver.Settings;
 
 /// <summary>Progress of one queued job, reported on the UI thread.</summary>
-internal sealed record JobProgress(int Done, int Total, string? CurrentItem, double? CurrentFraction)
+internal sealed record JobProgress(int Done, int Total, string? CurrentItem, double? CurrentFraction, int? CurrentSurah = null)
 {
     public double Fraction => Total == 0 ? 0 : Math.Clamp((Done + (CurrentFraction ?? 0)) / Total, 0, 1);
 }
@@ -52,8 +52,8 @@ internal sealed class DownloadManager
                 var surah = pending[i];
                 var done = i;
                 var itemProgress = new Progress<DownloadProgress>(p =>
-                    progress.Report(new JobProgress(done, pending.Count, $"Surah {surah}", p.Fraction)));
-                progress.Report(new JobProgress(done, pending.Count, $"Surah {surah}", 0));
+                    progress.Report(new JobProgress(done, pending.Count, $"Surah {surah}", p.Fraction, surah)));
+                progress.Report(new JobProgress(done, pending.Count, $"Surah {surah}", 0, surah));
                 await _downloader.EnsureSurahTextAsync(surah, ct);
                 await _downloader.EnsureSurahAudioAsync(reciterId, surah, itemProgress, ct);
             }

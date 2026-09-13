@@ -5,25 +5,33 @@
              xmlns:pages="clr-namespace:IslamicScreensaver.Settings.Pages">
     <StackPanel MinWidth="740" MaxWidth="820" HorizontalAlignment="Left">
         <TextBlock Text="Reciters" Style="{StaticResource PageTitle}" />
-        <TextBlock Text="Choose who you hear. Tick more than one to take turns." Style="{StaticResource PageSubtitle}" />
+        <TextBlock Text="Tick who you hear — several take turns. Open a reciter to choose which surahs to download." Style="{StaticResource PageSubtitle}" />
 
         <c:SettingsCard Header="Rotate reciters" Description="Each ticked reciter takes one surah in turn" Margin="0,20,0,4">
             <ToggleButton x:Name="Rotate" Style="{StaticResource ToggleSwitch}" Click="Rotate_Click" />
         </c:SettingsCard>
 
-        <Grid Margin="0,16,0,8">
-            <TextBlock Text="Available reciters" Style="{StaticResource SectionTitle}" Margin="0" VerticalAlignment="Center" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <TextBlock x:Name="ScopeText" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,12,0" />
-                <Button Content="Refresh list" Style="{StaticResource StandardButton}" Click="Refresh_Click" />
+        <Grid Margin="0,16,0,10">
+            <StackPanel Orientation="Horizontal">
+                <Border Width="260" Height="32" Background="White" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="4" VerticalAlignment="Center">
+                    <Grid>
+                        <TextBlock Text="&#xE721;" Style="{StaticResource Icon}" FontSize="13" Margin="10,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Left" />
+                        <TextBox x:Name="Search" Background="Transparent" BorderThickness="0" Padding="30,0,8,0" VerticalContentAlignment="Center" FontSize="14" TextChanged="Search_Changed" />
+                        <TextBlock x:Name="SearchHint" Text="Search reciters" Style="{StaticResource Body}" Foreground="{StaticResource TextDisabledBrush}" Margin="32,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
+                    </Grid>
+                </Border>
+                <TextBlock x:Name="CountText" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0" />
             </StackPanel>
+            <Button Content="Refresh list" Style="{StaticResource StandardButton}" HorizontalAlignment="Right" Click="Refresh_Click" />
         </Grid>
 
         <Border Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8">
             <ItemsControl x:Name="List">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type pages:ReciterRow}">
-                        <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,0" MinHeight="64">
+                        <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,0" MinHeight="64" Background="Transparent"
+                                Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}"
+                                MouseLeftButtonUp="Row_Click" Cursor="Hand">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -33,7 +41,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" />
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" ToolTip="Play this reciter" />
 
                                 <Border Grid.Column="1" Width="36" Height="36" CornerRadius="18" Background="{Binding AvatarBrush}" Margin="16,0,0,0">
                                     <TextBlock Text="{Binding Initials}" FontSize="13" FontWeight="SemiBold" Foreground="{Binding AvatarForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -55,9 +63,8 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="{Binding DownloadLabel}" Style="{StaticResource StandardButton}" Command="{Binding DownloadCommand}" Margin="0,0,8,0"
-                                            Visibility="{Binding ShowDownload, Converter={StaticResource BoolToVisibility}}" />
-                                    <Button Content="{Binding PlayGlyph}" Style="{StaticResource IconButton}" Command="{Binding PlayCommand}" ToolTip="Listen to a cached surah" />
+                                    <Button Content="{Binding PlayGlyph}" Style="{StaticResource IconButton}" Command="{Binding PlayCommand}" ToolTip="Listen to a downloaded surah" Margin="0,0,8,0" />
+                                    <Button Content="&#xE76C;" Style="{StaticResource IconButton}" Command="{Binding OpenCommand}" ToolTip="Choose surahs to download" />
                                 </StackPanel>
                             </Grid>
                         </Border>

@@ -51,6 +51,12 @@ internal sealed class SettingsContext
     /// <summary>Raised whenever a page changes a setting, so other pages (and previews) can react.</summary>
     public event Action? SettingsChanged;
 
+    /// <summary>Set by the window: push a detail page over the current one.</summary>
+    public Action<System.Windows.Controls.UserControl>? NavigateTo { get; set; }
+
+    /// <summary>Set by the window: return to the page beneath the current detail page.</summary>
+    public Action? NavigateBack { get; set; }
+
     /// <summary>Call after mutating <see cref="Settings"/>. Persists shortly afterwards.</summary>
     public void Changed()
     {

@@ -31,7 +31,22 @@ $installDir = Join-Path $env:LOCALAPPDATA "Programs\IslamicScreensaver"
 $scr = Join-Path $installDir "IslamicScreensaver.scr"
 
 if (-not $SkipPublish) {
-    # Running instances (fullscreen, settings, or the dialog's preview) hold the files open; stop them first.
+    # Windows' Screen Saver Settings dialog relaunches its preview the moment the previous one exits,
+    # so it would re-lock the files between our kill and the copy. Close it first.
+    Add-Type -Namespace Native -Name Win -MemberDefinition @'
+[System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+[System.Runtime.InteropServices.DllImport("user32.dll")]
+public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+'@
+    $dialog = [Native.Win]::FindWindow("#32770", "Screen Saver Settings")
+    if ($dialog -ne [IntPtr]::Zero) {
+        Write-Host "Closing the Screen Saver Settings dialog so its preview releases the files."
+        [void][Native.Win]::PostMessage($dialog, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)  # WM_CLOSE
+        Start-Sleep -Milliseconds 800
+    }
+
+    # Running instances (fullscreen, settings, or a preview) hold the files open; stop them.
     Get-CimInstance Win32_Process -Filter "Name = 'IslamicScreensaver.scr'" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Milliseconds 500
 
