@@ -204,6 +204,28 @@ Each milestone ends with something runnable. Do not start the next until the che
 - [x] All six pages screenshot-verified 2026-09-13
 - [ ] User to review the settings app; feedback folds into M6
 
+### M5b — Live reciter catalog + Library (requested 2026-09-13)
+Today's Reciters page mixes two jobs: *what is available online* and *what is on this PC*. Split them.
+- [ ] **Reciters** page becomes a live search over Quran.com: fetches `resources/recitations` on demand
+      and, per reciter, `chapter_recitations/{id}` to learn which surahs are actually hosted — so a
+      reciter with no audio (the current 404s) is shown as unavailable, not offered for download
+- [ ] Availability shown on the reciter page: tiles for surahs the API does not host are greyed out
+      and cannot be selected; the page header says "N of 114 available"
+- [ ] Clear error text for the remaining failure cases (offline, server error) instead of raw HTTP messages
+- [ ] New **Library** page: everything installed on this PC, grouped by reciter — surah count, size on
+      disk, play/rotation tick, open reciter page, delete reciter. This is where playback selection lives
+- [ ] Catalog cached with a timestamp; refreshed in the background when older than a day
+- [ ] Keep working offline: Library is fully usable with no network; Reciters page shows a friendly
+      "connect to browse" state
+
+### M7 — Localisation + dark mode (requested 2026-09-13)
+- [ ] Settings app strings moved to resource dictionaries; **Arabic** UI with full RTL layout
+      (`FlowDirection="RightToLeft"` on the window, mirrored nav pane and icons, Arabic UI font)
+- [ ] Language picker in Settings (System / English / العربية); screensaver chip and labels follow it
+- [ ] **Dark mode** for Settings: `Window.ThemeMode` Light/Dark/System plus a dark variant of every
+      palette brush in `Theme.xaml` (cards, nav, dividers, text); thumbnails and live preview unaffected
+- [ ] Theme picker in Settings (System / Light / Dark) and Windows accent colour option
+
 ### M6 — Hardening + release
 - [ ] Locked / secure-desktop behaviour tested (audio, cache access)
 - [ ] Multi-monitor mirror option
@@ -223,6 +245,7 @@ Each milestone ends with something runnable. Do not start the next until the che
 | WPF `MediaElement` weak on 4K video | Cap bundled videos at 1080p; evaluate FFME if user files stutter |
 | Blur shader cost on 4K displays | Blur a downscaled capture of the panel region, not the full frame |
 | Translation licences vary | Only ship translations whose licence allows redistribution; list them in About |
+| Some reciters in `resources/recitations` have no hosted surah audio → `chapter_recitations/{id}/{surah}` returns 404 (seen 2026-09-13) | M5b: query `chapter_recitations/{id}` first and only offer what exists |
 | **Quran.com timing data is misaligned for some surahs** (confirmed 2026-09-13: reciter 7, surah 78 — Al-Fatihah is fine; audio and timings come from the same API response, so it is upstream data) | Test other reciters/surahs in M6; compare against Quran.com's own player; evaluate the newer `audio/reciters/{id}/audio_files?segments=true` endpoint as an alternate timing source; surface `SyncOffsetMs` in Settings |
 
 Open:
