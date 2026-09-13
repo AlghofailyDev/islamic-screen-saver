@@ -230,6 +230,18 @@ Today's Reciters page mixes two jobs: *what is available online* and *what is on
 - [ ] "Test" button on the page plays a short cached sample through the chosen device
 - [ ] Optional: follow device changes at runtime (default-device routing when "System default" is chosen)
 
+### M5d — Custom storage location (requested 2026-09-13)
+- [ ] `AppSettings.CacheDirectory` (null = `%LOCALAPPDATA%\IslamicScreensaver\cache`); `ContentCache`
+      and every consumer resolve the root through settings, never through `AppPaths` directly
+- [ ] "Storage location" card (on the Library page, with a mirror in About): current path, size on
+      disk, **Change…** folder picker, **Reset to default**
+- [ ] Changing the location offers to **move** existing content (copy with progress, verify the
+      manifest loads from the new root, then delete the old folder) or leave it and start fresh
+- [ ] The location must be writable and not inside the app folder; validated before saving
+- [ ] Screensaver behaviour when the folder is unavailable at launch (external drive unplugged,
+      network share offline): log it and show the "nothing to play" hint instead of failing
+- [ ] Manifest paths stay relative, so a folder moved by hand (same layout) keeps working
+
 ### M7 — Localisation + dark mode (requested 2026-09-13)
 - [ ] Settings app strings moved to resource dictionaries; **Arabic** UI with full RTL layout
       (`FlowDirection="RightToLeft"` on the window, mirrored nav pane and icons, Arabic UI font)
