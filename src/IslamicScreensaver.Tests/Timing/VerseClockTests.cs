@@ -53,6 +53,27 @@ public class VerseClockTests
     }
 
     [Fact]
+    public void EndOf_IsNextVerseStart_OrOwnEndForLast()
+    {
+        var clock = Clock();
+        Assert.Equal(1000, clock.EndOf(-1));      // pre-verse region ends where verse 1 starts
+        Assert.Equal(6025, clock.EndOf(0));
+        Assert.Equal(11680, clock.EndOf(1));
+        Assert.Equal(15000, clock.EndOf(2));
+    }
+
+    [Theory]
+    [InlineData(-1, 500, 0.5)]
+    [InlineData(0, 1000, 0.0)]
+    [InlineData(0, 3512, 0.5)]
+    [InlineData(0, 9000, 1.0)]
+    [InlineData(2, 13340, 0.5)]
+    public void Progress_IsFractionOfVerseWindow(int verse, int ms, double expected)
+    {
+        Assert.Equal(expected, Clock().Progress(verse, ms), precision: 2);
+    }
+
+    [Fact]
     public void EmptyTimings_AlwaysBeforeFirst()
     {
         var clock = new VerseClock([]);

@@ -57,6 +57,22 @@ public sealed class VerseClock
     public int StartOf(int verseIndex) =>
         verseIndex < 0 || verseIndex >= _starts.Length ? 0 : _starts[verseIndex];
 
+    /// <summary>Where the verse leaves the screen: the next verse's start, or its own end for the last one.</summary>
+    public int EndOf(int verseIndex)
+    {
+        if (verseIndex < 0 || verseIndex >= _starts.Length)
+            return _starts.Length > 0 ? _starts[0] : 0;
+        return verseIndex + 1 < _starts.Length ? _starts[verseIndex + 1] : Math.Max(_timings[verseIndex].ToMs, _starts[verseIndex]);
+    }
+
+    /// <summary>0..1 progress through the verse (or the pre-verse region) at <paramref name="positionMs"/>.</summary>
+    public double Progress(int verseIndex, int positionMs)
+    {
+        var start = verseIndex < 0 ? 0 : StartOf(verseIndex);
+        var end = EndOf(verseIndex);
+        return end <= start ? 0 : Math.Clamp((double)(positionMs - start) / (end - start), 0, 1);
+    }
+
     private static int LastAtOrBefore(int[] sortedStarts, int value)
     {
         var lo = 0;

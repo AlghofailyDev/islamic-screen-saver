@@ -182,12 +182,16 @@ Each milestone ends with something runnable. Do not start the next until the che
 - [ ] User to confirm: audio audible, verse text visible on the primary monitor
 
 ### M4 — Visuals
-- [ ] Background layer: image + video, Ken Burns, vignette, user file support
-- [ ] Glass shader (blur, grain, tint) compiled and applied to the panel
-- [ ] Verse panel control: typography, chip, reciter label, progress hairline
-- [ ] Verse-change animation; word highlight
-- [ ] Tint sampling from background
-- [ ] Matches the design canvas
+- [x] Background layer: bundled procedural visuals (dawn, night), user image + video, Ken Burns drift,
+      vignette (`Rendering/BackgroundLayer`, `BundledBackgrounds`)
+- [x] Glass panel — blur, grain, tint, hairline edge — via WPF `BlurEffect` over a live `VisualBrush`
+      (`Rendering/GlassPanel`); no shader compiler needed
+- [x] Verse panel: typography, chip, reciter label, progress hairline; overlay scaled from a 1080p design
+- [x] Verse-change crossfade (fade + 8 px float); word highlight
+- [x] Tint sampling from a user image (darkened average colour); bundled visuals carry their own tint
+- [x] Matches the design canvas (screenshot-verified on 2560×1440, 2026-09-13)
+- [ ] User to review: colours, sizes, night background, a user image/video background
+- [ ] Optional: KFGQPC Uthmanic Hafs font in `assets/fonts/` (auto-detected; system Arabic faces otherwise)
 
 ### M5 — Settings app
 - [ ] WPF UI shell: NavigationView, Mica, theming
@@ -215,6 +219,7 @@ Each milestone ends with something runnable. Do not start the next until the che
 | WPF `MediaElement` weak on 4K video | Cap bundled videos at 1080p; evaluate FFME if user files stutter |
 | Blur shader cost on 4K displays | Blur a downscaled capture of the panel region, not the full frame |
 | Translation licences vary | Only ship translations whose licence allows redistribution; list them in About |
+| **Quran.com timing data is misaligned for some surahs** (confirmed 2026-09-13: reciter 7, surah 78 — Al-Fatihah is fine; audio and timings come from the same API response, so it is upstream data) | Test other reciters/surahs in M6; compare against Quran.com's own player; evaluate the newer `audio/reciters/{id}/audio_files?segments=true` endpoint as an alternate timing source; surface `SyncOffsetMs` in Settings |
 
 Open:
 - Which reciters ship in the starter set beyond the first one?
@@ -238,3 +243,5 @@ Open:
 | 2026-09-13 | Download completeness judged by HTTP `Content-Length`, not the API's `file_size` | API metadata is stale (claimed 839,808 bytes for a 793,327-byte file) |
 | 2026-09-13 | Audio via **NAudio** (MIT) — Media Foundation decode, WASAPI output, one continuous stream — instead of WPF `MediaPlayer` | `MediaPlayer.Position` is the decoder's position (ahead of the speakers by ~a word) and drifts on VBR MP3s, which Quran.com's files are; the device's rendered-sample count is exact. Also gives true gapless surah advance |
 | 2026-09-13 | A verse is on screen from its first word's timestamp until the next verse's first word | Matches the timing data's own granularity; `SyncOffsetMs` setting exists as a manual trim |
+| 2026-09-13 | Glass effect via WPF `BlurEffect` + `VisualBrush`, not a custom HLSL shader | Same GPU path, no `fxc` build dependency; grain is a tiled noise brush, tint a colour layer |
+| 2026-09-13 | Bundled backgrounds are procedural (gradients, tiled drawings), not image files | Resolution-independent, tiny, and no asset licensing to track |

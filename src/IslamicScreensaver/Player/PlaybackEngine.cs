@@ -71,6 +71,9 @@ internal sealed class PlaybackEngine : IDisposable
     /// <summary>Raised when the recited word within the current verse changes. 0 = none yet.</summary>
     public event Action<int>? WordChanged;
 
+    /// <summary>Raised every tick with 0..1 progress through the current verse, for the panel's hairline.</summary>
+    public event Action<double>? VerseProgress;
+
     public PlaylistItem? Current => _index >= 0 && _index < _playlist.Count ? _playlist[_index] : null;
 
     /// <summary>For diagnostics: the audio position the listener is hearing, if playing.</summary>
@@ -168,6 +171,8 @@ internal sealed class PlaybackEngine : IDisposable
             _shown = position;
             WordChanged?.Invoke(position.WordPosition);
         }
+
+        VerseProgress?.Invoke(_clock.Progress(position.VerseIndex, ms));
     }
 
     private void EnterSurah(int index)

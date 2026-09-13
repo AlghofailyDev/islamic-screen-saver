@@ -34,6 +34,7 @@ internal sealed class ScreensaverSession
         {
             var window = new ScreensaverWindow(monitor, this);
             _windows.Add(window);
+            window.ApplyAppearance(_settings, showPanel: _settings.MirrorOnAllMonitors || _windows.Count == 1);
             window.Show();
         }
 
@@ -72,11 +73,15 @@ internal sealed class ScreensaverSession
         var startIndex = PlaylistBuilder.StartIndex(playlist, _settings, lastState);
         Log.Info($"Playlist: {playlist.Count} surah(s), starting at #{startIndex} ({playlist[startIndex].ReciterId}/{playlist[startIndex].Surah}).");
 
+        var windows = WindowsWithPanels();
         _engine = new PlaybackEngine(cache, _settings, playlist, startIndex, lastState);
         _engine.VerseChanged += verse =>
         {
-            foreach (var panel in panels)
-                panel.Show(verse);
+            foreach (var window in windows)
+            {
+                window.Panel.Show(verse);
+                window.SetReciter(verse.ReciterName);
+            }
             _engine.CurrentState?.Save();
         };
         _engine.WordChanged += word =>
@@ -84,14 +89,19 @@ internal sealed class ScreensaverSession
             foreach (var panel in panels)
                 panel.HighlightWord(word);
         };
-        foreach (var panel in panels)
-            panel.WordHighlight = _settings.Panel.WordHighlight;
+        _engine.VerseProgress += fraction =>
+        {
+            foreach (var panel in panels)
+                panel.SetProgress(fraction);
+        };
 
         _engine.Start();
     }
 
-    private List<VersePanel> PanelsToDrive() =>
-        (_settings.MirrorOnAllMonitors ? _windows : _windows.Take(1)).Select(w => w.Panel).ToList();
+    private List<ScreensaverWindow> WindowsWithPanels() =>
+        (_settings.MirrorOnAllMonitors ? _windows : _windows.Take(1)).ToList();
+
+    private List<VersePanel> PanelsToDrive() => WindowsWithPanels().Select(w => w.Panel).ToList();
 
     public void OnMouseMove(double screenX, double screenY)
     {

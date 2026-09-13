@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Interop;
 using static IslamicScreensaver.Interop.NativeMethods;
 
@@ -9,6 +11,9 @@ namespace IslamicScreensaver.Screensaver;
 /// <summary>One fullscreen, topmost, cursor-less window covering exactly one monitor.</summary>
 public partial class ScreensaverWindow : Window
 {
+    /// <summary>The overlay is designed against this height; it scales up or down to the monitor's.</summary>
+    private const double DesignHeight = 1080;
+
     private readonly DisplayMonitor _monitor;
     private readonly ScreensaverSession _session;
 
@@ -18,9 +23,37 @@ public partial class ScreensaverWindow : Window
         _session = session;
         InitializeComponent();
         SourceInitialized += OnSourceInitialized;
+        SizeChanged += (_, _) => ScaleOverlay();
+        Panel.SetBackdrop(Backdrop);
     }
 
     internal DisplayMonitor Monitor => _monitor;
+
+    /// <summary>Applies background and panel look. Call once before playback starts.</summary>
+    internal void ApplyAppearance(AppSettings settings, bool showPanel)
+    {
+        Backdrop.Load(settings.Background);
+        Panel.ApplyStyle(settings.Panel, Backdrop.SuggestedTint);
+        if (!showPanel)
+        {
+            Panel.Visibility = Visibility.Collapsed;
+            ReciterBlock.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    internal void SetReciter(string name)
+    {
+        ReciterName.Text = name;
+        ReciterBlock.Visibility = string.IsNullOrEmpty(name) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void ScaleOverlay()
+    {
+        if (ActualHeight <= 0)
+            return;
+        var scale = ActualHeight / DesignHeight;
+        Overlay.LayoutTransform = new ScaleTransform(scale, scale);
+    }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
