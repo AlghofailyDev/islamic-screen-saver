@@ -38,6 +38,9 @@ public sealed class ContentCache
 
     public static ContentCache Default() => new(AppPaths.CacheDirectory);
 
+    /// <summary>The cache the user has configured (or the default when they have not moved it).</summary>
+    public static ContentCache For(Settings.AppSettings settings) => new(settings.ResolvedCacheDirectory);
+
     public string RootDirectory { get; }
 
     public string ManifestPath => Path.Combine(RootDirectory, "manifest.json");
@@ -73,6 +76,29 @@ public sealed class ContentCache
         lock (_manifestGate)
             return _manifest.TranslationsByResource.TryGetValue(resourceId, out var surahs) && surahs.Contains(surah);
     }
+
+    /// <summary>
+    /// Surahs the server advertises for a reciter but does not actually host (the file 404s).
+    /// Remembered so the UI can grey them out and downloads never try them again.
+    /// </summary>
+    public bool IsUnavailable(int reciterId, int surah)
+    {
+        lock (_manifestGate)
+            return _manifest.UnavailableByReciter.TryGetValue(reciterId, out var surahs) && surahs.Contains(surah);
+    }
+
+    public IReadOnlyCollection<int> UnavailableSurahsFor(int reciterId)
+    {
+        lock (_manifestGate)
+            return _manifest.UnavailableByReciter.TryGetValue(reciterId, out var surahs) ? surahs.ToArray() : [];
+    }
+
+    public void MarkUnavailable(int reciterId, int surah) =>
+        UpdateManifest(m => m.SurahsFor(m.UnavailableByReciter, reciterId).Add(surah));
+
+    /// <summary>Forgets what was unavailable for a reciter, so a retry can find content the server has since fixed.</summary>
+    public void ClearUnavailable(int reciterId) =>
+        UpdateManifest(m => m.UnavailableByReciter.Remove(reciterId));
 
     /// <summary>Surahs for which this reciter's audio and timings are both complete.</summary>
     public IReadOnlyCollection<int> CachedSurahsFor(int reciterId)
@@ -132,6 +158,16 @@ public sealed class ContentCache
     public Task WriteChaptersAsync(IReadOnlyList<Chapter> chapters, CancellationToken ct = default) => WriteJsonAsync(CatalogPath("chapters"), chapters, ct);
 
     public Task WriteTranslationsAsync(IReadOnlyList<TranslationResource> translations, CancellationToken ct = default) => WriteJsonAsync(CatalogPath("translations"), translations, ct);
+
+    /// <summary>When the reciter/chapter/translation lists were last fetched, for the daily background refresh.</summary>
+    public DateTimeOffset? CatalogFetchedAt
+    {
+        get { lock (_manifestGate) return _manifest.CatalogFetchedAt; }
+    }
+
+    public void MarkCatalogFetched() => UpdateManifest(m => m.CatalogFetchedAt = DateTimeOffset.Now);
+
+    public bool CatalogIsStale(TimeSpan maxAge) => CatalogFetchedAt is not { } at || DateTimeOffset.Now - at > maxAge;
 
     /// <summary>Removes a reciter's audio for one surah and forgets it in the manifest.</summary>
     public void DeleteSurahAudio(int reciterId, int surah)
@@ -198,6 +234,8 @@ public sealed class ContentCache
         public SortedSet<int> TextSurahs { get; set; } = [];
         public Dictionary<int, SortedSet<int>> AudioByReciter { get; set; } = [];
         public Dictionary<int, SortedSet<int>> TranslationsByResource { get; set; } = [];
+        public Dictionary<int, SortedSet<int>> UnavailableByReciter { get; set; } = [];
+        public DateTimeOffset? CatalogFetchedAt { get; set; }
 
         internal SortedSet<int> SurahsFor(Dictionary<int, SortedSet<int>> map, int id)
         {

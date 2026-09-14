@@ -31,8 +31,8 @@ public partial class SettingsWindow : Window
         Loaded += async (_, _) =>
         {
             Nav.SelectedIndex = 0;
-            if (!_context.HasCatalog)
-                await _context.RefreshCatalogAsync();
+            // Silent background top-up: the cached catalog is used immediately, refreshed if it is a day old.
+            await _context.RefreshCatalogIfStaleAsync();
         };
     }
 
@@ -51,6 +51,7 @@ public partial class SettingsWindow : Window
         {
             page = key switch
             {
+                "library" => new LibraryPage(_context, () => SelectNav("reciters")),
                 "reciters" => new RecitersPage(_context),
                 "surahs" => new SurahsPage(_context),
                 "background" => new BackgroundPage(_context),
@@ -61,6 +62,12 @@ public partial class SettingsWindow : Window
             _pages[key] = page;
         }
         PageHost.Content = page;
+    }
+
+    /// <summary>Moves the nav selection, e.g. the Library's "Browse reciters" button.</summary>
+    private void SelectNav(string tag)
+    {
+        Nav.SelectedItem = Nav.Items.Cast<ListBoxItem>().FirstOrDefault(i => (string?)i.Tag == tag);
     }
 
     private void RunScreensaver_Click(object sender, RoutedEventArgs e)

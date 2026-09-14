@@ -76,6 +76,16 @@ public sealed class AppSettings
     /// <summary>Show the verse panel on every monitor rather than only the primary.</summary>
     public bool MirrorOnAllMonitors { get; set; }
 
+    /// <summary>
+    /// Where downloaded recitations live. Null means the default under <c>%LOCALAPPDATA%</c>; set it to
+    /// keep a large library on another drive.
+    /// </summary>
+    public string? CacheDirectory { get; set; }
+
+    /// <summary>The cache root to actually use, falling back to the default for a blank or unusable value.</summary>
+    public string ResolvedCacheDirectory =>
+        string.IsNullOrWhiteSpace(CacheDirectory) ? AppPaths.CacheDirectory : CacheDirectory;
+
     /// <summary>Clamps out-of-range values so a hand-edited file cannot produce a silent or invisible screensaver.</summary>
     public void Normalize()
     {
@@ -85,6 +95,8 @@ public sealed class AppSettings
         Panel.Grain = double.IsFinite(Panel.Grain) ? Math.Clamp(Panel.Grain, 0, 1) : 0.35;
         Panel.TintOpacity = double.IsFinite(Panel.TintOpacity) ? Math.Clamp(Panel.TintOpacity, 0, 1) : 0.42;
         ReciterIds = ReciterIds.Where(id => id > 0).Distinct().ToList();
+        if (string.IsNullOrWhiteSpace(CacheDirectory))
+            CacheDirectory = null;
         SelectedSurahs = SelectedSurahs?.Where(s => s is >= 1 and <= 114).Distinct().Order().ToList();
         if (SelectedSurahs is { Count: 0 })
             SelectedSurahs = null;

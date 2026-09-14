@@ -29,7 +29,7 @@ internal static class StarterSeeder
 
         try
         {
-            var cache = ContentCache.Default();
+            var cache = ContentCache.For(Core.Settings.SettingsStore.Load());
             var downloader = new ContentDownloader(new QuranApiClient(new HttpClient()), new HttpClient(), cache);
 
             Say($"Fetching starter content into {cache.RootDirectory}");
@@ -44,7 +44,14 @@ internal static class StarterSeeder
                 Say($"  {p.Item}{(p.TotalBytes is { } t ? $" ({t / 1024} KB)" : "")}");
             });
 
-            await StarterContent.DownloadAsync(downloader, progress);
+            try
+            {
+                await StarterContent.DownloadAsync(downloader, progress);
+            }
+            catch (ContentUnavailableException ex)
+            {
+                Say($"  skipped: {ex.Message}");
+            }
 
             Say($"Done. {cache.CachedSurahsFor(StarterContent.ReciterId).Count} surahs ready for reciter {StarterContent.ReciterId}.");
             return 0;

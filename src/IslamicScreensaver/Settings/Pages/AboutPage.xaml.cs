@@ -21,6 +21,7 @@ public partial class AboutPage : UserControl
         VersionText.Text = $"Islamic Screensaver {version} — Quran recitation with the verse on screen, as a Windows screensaver.";
         SettingsCard.Description = AppPaths.SettingsFile;
         _ctx.Downloads.Changed += (_, _) => UpdateCacheSize();
+        _ctx.CacheMoved += UpdateCacheSize;
         UpdateCacheSize();
     }
 
@@ -30,7 +31,7 @@ public partial class AboutPage : UserControl
         {
             var dir = new DirectoryInfo(_ctx.Cache.RootDirectory);
             var bytes = dir.Exists ? dir.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length) : 0;
-            CacheCard.Description = $"{bytes / 1024.0 / 1024.0:0.0} MB in {_ctx.Cache.RootDirectory}";
+            CacheCard.Description = $"{bytes / 1024.0 / 1024.0:0.0} MB in {_ctx.Cache.RootDirectory} — change the folder on the Library page";
         }
         catch (Exception ex)
         {

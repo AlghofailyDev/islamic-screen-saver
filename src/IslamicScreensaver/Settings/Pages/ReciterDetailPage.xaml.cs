@@ -31,11 +31,13 @@ public partial class ReciterDetailPage : UserControl
 
         _ctx.Downloads.Changed += OnJobChanged;
         _ctx.Downloads.Failed += OnJobFailed;
+        _ctx.Downloads.Notice += OnJobNotice;
         _ctx.Samples.PlayingChanged += _ => UpdateListen();
         Unloaded += (_, _) =>
         {
             _ctx.Downloads.Changed -= OnJobChanged;
             _ctx.Downloads.Failed -= OnJobFailed;
+            _ctx.Downloads.Notice -= OnJobNotice;
         };
 
         RefreshStates();
@@ -50,16 +52,25 @@ public partial class ReciterDetailPage : UserControl
     private void RefreshStates()
     {
         var cached = new HashSet<int>(_ctx.Cache.CachedSurahsFor(_reciter.Id));
+        var unavailable = new HashSet<int>(_ctx.Cache.UnavailableSurahsFor(_reciter.Id));
         foreach (var tile in _tiles)
-            tile.SetState(cached.Contains(tile.Number) ? SurahState.Downloaded : SurahState.Missing);
+        {
+            tile.SetState(cached.Contains(tile.Number) ? SurahState.Downloaded
+                : unavailable.Contains(tile.Number) ? SurahState.Unavailable
+                : SurahState.Missing);
+            if (tile.State == SurahState.Unavailable)
+                tile.IsSelected = false;
+        }
         UpdateSummary();
     }
 
     private void UpdateSummary()
     {
         var downloaded = _tiles.Count(t => t.State == SurahState.Downloaded);
+        var unavailable = _tiles.Count(t => t.State == SurahState.Unavailable);
+        var obtainable = _tiles.Count - unavailable;
         var selected = _tiles.Where(t => t.IsSelected).ToList();
-        var toDownload = selected.Count(t => t.State != SurahState.Downloaded);
+        var toDownload = selected.Count(t => t.State == SurahState.Missing);
         var toDelete = selected.Count(t => t.State == SurahState.Downloaded);
 
         CountText.Text = selected.Count == 0 ? string.Empty : $"{selected.Count} selected";
@@ -67,9 +78,14 @@ public partial class ReciterDetailPage : UserControl
         if (IsDownloading)
             return;
 
-        StatusText.Text = downloaded == 114 ? "All 114 surahs downloaded" : downloaded == 0 ? "Nothing downloaded yet" : $"{downloaded} of 114 surahs downloaded";
+        StatusText.Text = downloaded == obtainable && obtainable > 0
+            ? (unavailable == 0 ? "All 114 surahs downloaded" : $"All {obtainable} available surahs downloaded")
+            : downloaded == 0 ? "Nothing downloaded yet"
+            : $"{downloaded} of {obtainable} surahs downloaded";
         StatusDetail.Text = selected.Count == 0
-            ? "Select surahs below, or use Select all / Select missing."
+            ? unavailable > 0
+                ? $"{unavailable} surah{(unavailable == 1 ? " is" : "s are")} not hosted by Quran.com for this reciter."
+                : "Select surahs below, or use Select all / Select missing."
             : toDownload == 0 ? "Everything selected is already downloaded." : $"{toDownload} selected surah{(toDownload == 1 ? "" : "s")} to download";
 
         DownloadButton.Content = toDownload > 0 ? $"Download {toDownload}" : "Download selected";
@@ -126,6 +142,12 @@ public partial class ReciterDetailPage : UserControl
             MessageBox.Show(message, "Download failed", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
+    private void OnJobNotice(string key, string message)
+    {
+        if (key == JobKey)
+            MessageBox.Show(message, "Some surahs were skipped", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     private void Download_Click(object sender, RoutedEventArgs e)
     {
         if (IsDownloading)
@@ -134,7 +156,7 @@ public partial class ReciterDetailPage : UserControl
             return;
         }
 
-        var surahs = _tiles.Where(t => t.IsSelected && t.State != SurahState.Downloaded).Select(t => t.Number).ToList();
+        var surahs = _tiles.Where(t => t.IsSelected && t.State == SurahState.Missing).Select(t => t.Number).ToList();
         if (surahs.Count == 0)
             return;
         _ctx.Downloads.EnqueueReciter(_reciter.Id, surahs);
@@ -165,14 +187,14 @@ public partial class ReciterDetailPage : UserControl
     {
         _bulkUpdate = true;
         foreach (var tile in _tiles)
-            tile.IsSelected = value && (where?.Invoke(tile) ?? true);
+            tile.IsSelected = value && tile.State != SurahState.Unavailable && (where?.Invoke(tile) ?? true);
         _bulkUpdate = false;
         UpdateSummary();
     }
 
     private void SelectAll_Click(object sender, RoutedEventArgs e) => SetAll(true);
 
-    private void SelectMissing_Click(object sender, RoutedEventArgs e) => SetAll(true, t => t.State != SurahState.Downloaded);
+    private void SelectMissing_Click(object sender, RoutedEventArgs e) => SetAll(true, t => t.State == SurahState.Missing);
 
     private void Clear_Click(object sender, RoutedEventArgs e) => SetAll(false);
 
@@ -212,6 +234,9 @@ internal enum SurahState
     Missing,
     Downloading,
     Downloaded,
+
+    /// <summary>Listed by Quran.com but not actually hosted — cannot be downloaded.</summary>
+    Unavailable,
 }
 
 internal sealed class ReciterSurahTile : ObservableObject
@@ -219,6 +244,7 @@ internal sealed class ReciterSurahTile : ObservableObject
     private static readonly Brush DownloadedBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x1F, 0x7A, 0x63)));
     private static readonly Brush MissingBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9D, 0x9D, 0x9D)));
     private static readonly Brush DownloadingBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9D, 0x5D, 0x00)));
+    private static readonly Brush UnavailableBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xB0, 0x4A, 0x3A)));
 
     private readonly Action _changed;
     private readonly string _nameArabic;
@@ -254,6 +280,7 @@ internal sealed class ReciterSurahTile : ObservableObject
     {
         SurahState.Downloaded => "Downloaded",
         SurahState.Downloading => "Downloading…",
+        SurahState.Unavailable => "Not available",
         _ => "Not downloaded",
     };
 
@@ -261,6 +288,7 @@ internal sealed class ReciterSurahTile : ObservableObject
     {
         SurahState.Downloaded => "\uE73E",   // check mark
         SurahState.Downloading => "\uE896",  // download arrow
+        SurahState.Unavailable => "\uE7BA",  // warning
         _ => "",
     };
 
@@ -268,8 +296,14 @@ internal sealed class ReciterSurahTile : ObservableObject
     {
         SurahState.Downloaded => DownloadedBrush,
         SurahState.Downloading => DownloadingBrush,
+        SurahState.Unavailable => UnavailableBrush,
         _ => MissingBrush,
     };
+
+    /// <summary>Unavailable tiles are dimmed and cannot be picked.</summary>
+    public bool IsSelectable => _state != SurahState.Unavailable;
+
+    public double TileOpacity => _state == SurahState.Unavailable ? 0.55 : 1.0;
 
     public void SetState(SurahState state)
     {
@@ -280,6 +314,8 @@ internal sealed class ReciterSurahTile : ObservableObject
         Raise(nameof(StateText));
         Raise(nameof(StateGlyph));
         Raise(nameof(StateBrush));
+        Raise(nameof(IsSelectable));
+        Raise(nameof(TileOpacity));
     }
 
     public bool Matches(string query) =>

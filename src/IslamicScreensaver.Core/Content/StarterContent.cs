@@ -24,7 +24,15 @@ public static class StarterContent
             ct.ThrowIfCancellationRequested();
             await downloader.EnsureSurahTextAsync(surah, ct);
             await downloader.EnsureSurahTranslationAsync(TranslationId, surah, ct);
-            await downloader.EnsureSurahAudioAsync(ReciterId, surah, progress, ct);
+            try
+            {
+                await downloader.EnsureSurahAudioAsync(ReciterId, surah, progress, ct);
+            }
+            catch (ContentUnavailableException ex)
+            {
+                // One missing recording must not stop the whole starter set.
+                Log.Info(ex.Message);
+            }
         }
     }
 }

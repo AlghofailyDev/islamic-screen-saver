@@ -21,9 +21,8 @@ internal sealed class SettingsContext
     public SettingsContext()
     {
         Settings = SettingsStore.Load();
-        Cache = ContentCache.Default();
         Api = new QuranApiClient(new HttpClient());
-        Downloads = new DownloadManager(new ContentDownloader(Api, new HttpClient(), Cache), Cache);
+        UseCacheAt(Settings.ResolvedCacheDirectory);
 
         Reciters = Cache.ReadReciters() ?? [];
         Chapters = Cache.ReadChapters() ?? [];
@@ -34,10 +33,22 @@ internal sealed class SettingsContext
     }
 
     public AppSettings Settings { get; }
-    public ContentCache Cache { get; }
+    public ContentCache Cache { get; private set; } = null!;
     public IQuranApi Api { get; }
-    public DownloadManager Downloads { get; }
+    public DownloadManager Downloads { get; private set; } = null!;
     public SamplePlayer Samples { get; } = new();
+
+    /// <summary>Points the cache and downloader at <paramref name="directory"/>, rebuilding both.</summary>
+    public void UseCacheAt(string directory)
+    {
+        Cache = new ContentCache(directory);
+        Downloads = new DownloadManager(new ContentDownloader(Api, new HttpClient(), Cache), Cache);
+    }
+
+    /// <summary>Raised after the library moves to a different folder, so pages rebind to the new cache.</summary>
+    public event Action? CacheMoved;
+
+    public void NotifyCacheMoved() => CacheMoved?.Invoke();
 
     public IReadOnlyList<Reciter> Reciters { get; private set; }
     public IReadOnlyList<Chapter> Chapters { get; private set; }
@@ -75,6 +86,9 @@ internal sealed class SettingsContext
         SettingsStore.Save(Settings);
     }
 
+    /// <summary>How long a cached catalog is considered current before a background refresh.</summary>
+    public static TimeSpan CatalogMaxAge { get; } = TimeSpan.FromDays(1);
+
     public async Task<bool> RefreshCatalogAsync()
     {
         try
@@ -85,6 +99,7 @@ internal sealed class SettingsContext
             await Cache.WriteRecitersAsync(reciters);
             await Cache.WriteChaptersAsync(chapters);
             await Cache.WriteTranslationsAsync(translations);
+            Cache.MarkCatalogFetched();
             Reciters = reciters;
             Chapters = chapters;
             Translations = translations;
@@ -96,6 +111,14 @@ internal sealed class SettingsContext
             Log.Error("Could not refresh the catalog.", ex);
             return false;
         }
+    }
+
+    /// <summary>Fetches the catalog when it is missing or older than a day. Silent on failure — the cache still works.</summary>
+    public async Task RefreshCatalogIfStaleAsync()
+    {
+        if (HasCatalog && !Cache.CatalogIsStale(CatalogMaxAge))
+            return;
+        await RefreshCatalogAsync();
     }
 
     /// <summary>The surahs playback is limited to (all 114 when nothing is selected).</summary>

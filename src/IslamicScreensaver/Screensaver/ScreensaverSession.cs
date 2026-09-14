@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using IslamicScreensaver.Core;
@@ -57,9 +58,19 @@ internal sealed class ScreensaverSession
 
     private void StartPlayback()
     {
-        var cache = ContentCache.Default();
-        var playlist = PlaylistBuilder.Build(_settings, cache.CachedSurahsFor, cache.CachedReciters());
+        var cache = ContentCache.For(_settings);
         var panels = PanelsToDrive();
+
+        // The library can live on a drive that is not currently attached.
+        if (!Directory.Exists(cache.RootDirectory))
+        {
+            Log.Error($"Download folder {cache.RootDirectory} is not available; nothing to play.");
+            foreach (var panel in panels)
+                panel.ShowHint("The folder holding the recitations isn't available right now — reconnect the drive, or choose another folder in Settings.");
+            return;
+        }
+
+        var playlist = PlaylistBuilder.Build(_settings, cache.CachedSurahsFor, cache.CachedReciters());
 
         if (playlist.Count == 0)
         {

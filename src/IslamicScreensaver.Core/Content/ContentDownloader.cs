@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 
 namespace IslamicScreensaver.Core.Content;
@@ -7,6 +8,12 @@ public sealed record DownloadProgress(string Item, long BytesReceived, long? Tot
 {
     public double? Fraction => TotalBytes is > 0 ? Math.Clamp((double)BytesReceived / TotalBytes.Value, 0, 1) : null;
 }
+
+/// <summary>
+/// The server advertises this content but does not host it (404). Not a failure to retry — the item is
+/// simply not obtainable, so callers skip it and carry on with the rest.
+/// </summary>
+public sealed class ContentUnavailableException(string message) : Exception(message);
 
 /// <summary>
 /// Fills the <see cref="ContentCache"/> from the API. Every method is idempotent: already-cached
@@ -36,6 +43,7 @@ public sealed class ContentDownloader
         await _cache.WriteRecitersAsync(await _api.GetRecitersAsync(ct), ct);
         await _cache.WriteChaptersAsync(await _api.GetChaptersAsync(ct), ct);
         await _cache.WriteTranslationsAsync(await _api.GetTranslationsAsync(ct), ct);
+        _cache.MarkCatalogFetched();
     }
 
     public async Task EnsureSurahTextAsync(int surah, CancellationToken ct = default)
@@ -56,21 +64,37 @@ public sealed class ContentDownloader
         await _cache.WriteSurahTranslationAsync(translation, ct);
     }
 
+    /// <summary>
+    /// Downloads one surah's audio and timings.
+    /// </summary>
+    /// <exception cref="ContentUnavailableException">
+    /// The server does not host this recording (404). It is remembered as unavailable so it is not tried again.
+    /// </exception>
     public async Task EnsureSurahAudioAsync(int reciterId, int surah, IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
     {
         if (_cache.HasSurahAudio(reciterId, surah))
             return;
 
-        var audio = await WithRetry(() => _api.GetSurahAudioAsync(reciterId, surah, ct), $"timings {reciterId}/{surah}", ct);
-        await _cache.WriteTimingsAsync(reciterId, surah, audio.Timings, ct);
-
-        var target = _cache.AudioPath(reciterId, surah);
-        var label = $"audio {reciterId}/{surah}";
-        await WithRetry(async () =>
+        try
         {
-            await DownloadFileAsync(audio.AudioUrl, target, audio.FileSize, label, progress, ct);
-            return true;
-        }, label, ct);
+            var audio = await WithRetry(() => _api.GetSurahAudioAsync(reciterId, surah, ct), $"timings {reciterId}/{surah}", ct);
+            await _cache.WriteTimingsAsync(reciterId, surah, audio.Timings, ct);
+
+            var target = _cache.AudioPath(reciterId, surah);
+            var label = $"audio {reciterId}/{surah}";
+            await WithRetry(async () =>
+            {
+                await DownloadFileAsync(audio.AudioUrl, target, audio.FileSize, label, progress, ct);
+                return true;
+            }, label, ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            // Quran.com's catalog lists recordings its CDN does not actually serve. Remember and move on.
+            _cache.MarkUnavailable(reciterId, surah);
+            Log.Info($"Surah {surah} is not hosted for reciter {reciterId}; marked unavailable.");
+            throw new ContentUnavailableException($"Surah {surah} is not available from this reciter.");
+        }
 
         _cache.MarkSurahAudioComplete(reciterId, surah);
     }
@@ -144,6 +168,11 @@ public sealed class ContentDownloader
             try
             {
                 return await action();
+            }
+            // A 404 means the content is not there; retrying cannot change that.
+            catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
+            {
+                throw;
             }
             catch (Exception ex) when (attempt < MaxAttempts && ex is HttpRequestException or IOException or TaskCanceledException && !ct.IsCancellationRequested)
             {

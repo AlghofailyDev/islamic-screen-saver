@@ -79,6 +79,33 @@ public sealed class ContentDownloaderTests : IDisposable
     }
 
     [Fact]
+    public async Task MissingFile_IsMarkedUnavailable_NotRetried()
+    {
+        var cache = new ContentCache(_root);
+        var server = new FakeFileServer(_mp3) { NotFound = true };
+        var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
+
+        await Assert.ThrowsAsync<ContentUnavailableException>(() => downloader.EnsureSurahAudioAsync(8, 1));
+
+        Assert.Equal(1, server.Requests);                  // a 404 is final, so no retries
+        Assert.True(cache.IsUnavailable(8, 1));
+        Assert.False(cache.HasSurahAudio(8, 1));
+        Assert.Equal([1], cache.UnavailableSurahsFor(8));
+
+        // And it is remembered across instances, so the UI can grey it out.
+        Assert.True(new ContentCache(_root).IsUnavailable(8, 1));
+    }
+
+    [Fact]
+    public async Task ClearUnavailable_AllowsAnotherAttempt()
+    {
+        var cache = new ContentCache(_root);
+        cache.MarkUnavailable(8, 1);
+        cache.ClearUnavailable(8);
+        Assert.False(cache.IsUnavailable(8, 1));
+    }
+
+    [Fact]
     public async Task TruncatedDownload_IsNotMarkedComplete()
     {
         var cache = new ContentCache(_root);
@@ -117,12 +144,15 @@ public sealed class ContentDownloaderTests : IDisposable
         public long? LastRangeFrom { get; private set; }
         public int FailFirstRequests { get; init; }
         public int? TruncateTo { get; init; }
+        public bool NotFound { get; init; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             Requests++;
             if (Requests <= FailFirstRequests)
                 throw new HttpRequestException("simulated network failure");
+            if (NotFound)
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("") });
 
             var from = request.Headers.Range?.Ranges.FirstOrDefault()?.From;
             LastRangeFrom = from;

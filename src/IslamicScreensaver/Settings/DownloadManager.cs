@@ -1,3 +1,5 @@
+using System.IO;
+using System.Net.Http;
 using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
@@ -38,15 +40,21 @@ internal sealed class DownloadManager
     /// <summary>Raised on the UI thread with a message when a job fails.</summary>
     public event Action<string, string>? Failed;
 
+    /// <summary>Raised on the UI thread when a job finished but has something to tell the user (e.g. skipped items).</summary>
+    public event Action<string, string>? Notice;
+
+    private void Report(string key, string message) => _dispatcher.InvokeAsync(() => Notice?.Invoke(key, message));
+
     public bool IsBusy(string key) => _active.ContainsKey(key);
 
     public JobProgress? ProgressOf(string key) => _active.GetValueOrDefault(key);
 
     public void EnqueueReciter(int reciterId, IReadOnlyList<int> surahs)
     {
-        var pending = surahs.Where(s => !_cache.HasSurahAudio(reciterId, s)).ToList();
+        var pending = surahs.Where(s => !_cache.HasSurahAudio(reciterId, s) && !_cache.IsUnavailable(reciterId, s)).ToList();
         Enqueue($"reciter:{reciterId}", async (progress, ct) =>
         {
+            var unavailable = 0;
             for (var i = 0; i < pending.Count; i++)
             {
                 var surah = pending[i];
@@ -55,9 +63,19 @@ internal sealed class DownloadManager
                     progress.Report(new JobProgress(done, pending.Count, $"Surah {surah}", p.Fraction, surah)));
                 progress.Report(new JobProgress(done, pending.Count, $"Surah {surah}", 0, surah));
                 await _downloader.EnsureSurahTextAsync(surah, ct);
-                await _downloader.EnsureSurahAudioAsync(reciterId, surah, itemProgress, ct);
+                try
+                {
+                    await _downloader.EnsureSurahAudioAsync(reciterId, surah, itemProgress, ct);
+                }
+                catch (ContentUnavailableException)
+                {
+                    // The server does not host this one; keep going with the rest and say so at the end.
+                    unavailable++;
+                }
             }
             progress.Report(new JobProgress(pending.Count, pending.Count, null, null));
+            if (unavailable > 0)
+                Report($"reciter:{reciterId}", $"{unavailable} of {pending.Count} surah{(unavailable == 1 ? " is" : "s are")} not available from this reciter — Quran.com lists them but does not host the audio. Everything else was downloaded.");
         });
     }
 
@@ -81,6 +99,16 @@ internal sealed class DownloadManager
         _queue.Clear();
         _cts?.Cancel();
     }
+
+    /// <summary>Plain words for the failures a user can actually act on; raw HTTP text helps nobody.</summary>
+    private static string Describe(Exception ex) => ex switch
+    {
+        HttpRequestException { StatusCode: null } => "Could not reach Quran.com. Check your internet connection and try again.",
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.TooManyRequests } => "Quran.com is rate-limiting downloads right now. Wait a few minutes and try again.",
+        HttpRequestException http when (int)(http.StatusCode ?? 0) >= 500 => "Quran.com is having trouble serving this right now. Try again later.",
+        IOException io => $"Could not write to the download folder: {io.Message}",
+        _ => ex.Message,
+    };
 
     private void Enqueue(string key, Func<IProgress<JobProgress>, CancellationToken, Task> work)
     {
@@ -121,7 +149,7 @@ internal sealed class DownloadManager
             catch (Exception ex)
             {
                 Log.Error($"Download job {key} failed.", ex);
-                await _dispatcher.InvokeAsync(() => Failed?.Invoke(key, ex.Message));
+                await _dispatcher.InvokeAsync(() => Failed?.Invoke(key, Describe(ex)));
             }
             finally
             {

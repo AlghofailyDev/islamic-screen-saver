@@ -206,17 +206,24 @@ Each milestone ends with something runnable. Do not start the next until the che
 
 ### M5b — Live reciter catalog + Library (requested 2026-09-13)
 Today's Reciters page mixes two jobs: *what is available online* and *what is on this PC*. Split them.
-- [ ] **Reciters** page becomes a live search over Quran.com: fetches `resources/recitations` on demand
-      and, per reciter, `chapter_recitations/{id}` to learn which surahs are actually hosted — so a
-      reciter with no audio (the current 404s) is shown as unavailable, not offered for download
-- [ ] Availability shown on the reciter page: tiles for surahs the API does not host are greyed out
-      and cannot be selected; the page header says "N of 114 available"
-- [ ] Clear error text for the remaining failure cases (offline, server error) instead of raw HTTP messages
-- [ ] New **Library** page: everything installed on this PC, grouped by reciter — surah count, size on
-      disk, play/rotation tick, open reciter page, delete reciter. This is where playback selection lives
-- [ ] Catalog cached with a timestamp; refreshed in the background when older than a day
-- [ ] Keep working offline: Library is fully usable with no network; Reciters page shows a friendly
-      "connect to browse" state
+Investigated 2026-09-13: the catalog is NOT the problem — all 12 reciters list all 114 files. The 404
+is on the CDN itself (reciter 8, `siddiq_al-minshawi/mujawwad/001.mp3`), i.e. Quran.com advertises audio
+that is not hosted. So availability cannot be trusted from metadata; the download path must be resilient.
+Search stays local (filtering the cached catalog), so typing costs no requests.
+- [x] Catalog cached with a fetched-at timestamp (`manifest.CatalogFetchedAt`); refreshed in the
+      background when older than a day; **Reciters** search filters the cached list locally
+      (zero requests per keystroke)
+- [x] **Download resilience (the real fix):** a 404 throws `ContentUnavailableException`, marks that
+      surah unavailable, is not retried, and does not abort the job — the rest continue and the page
+      reports "N of M surahs are not available from this reciter" at the end
+- [x] Unavailable surahs remembered in the cache manifest; dimmed on the reciter page as "Not
+      available", not selectable, excluded from Select all / Select missing and from download counts
+- [x] Clear error text for the remaining failure cases (offline, rate-limited, server error, disk)
+      instead of raw HTTP messages (`DownloadManager.Describe`)
+- [x] New **Library** page: everything installed on this PC per reciter — surah count, size on disk,
+      playback tick, rotate toggle, listen, delete, open reciter page; empty state points at Reciters
+- [x] Keep working offline: Library reads only the cache; the screensaver shows a clear hint when the
+      download folder is on a drive that is not attached
 
 ### M5c — Audio page: output device + playback (requested 2026-09-13)
 - [ ] New **Audio** page in Settings; Volume and Text timing move here from Reciters
@@ -231,16 +238,17 @@ Today's Reciters page mixes two jobs: *what is available online* and *what is on
 - [ ] Optional: follow device changes at runtime (default-device routing when "System default" is chosen)
 
 ### M5d — Custom storage location (requested 2026-09-13)
-- [ ] `AppSettings.CacheDirectory` (null = `%LOCALAPPDATA%\IslamicScreensaver\cache`); `ContentCache`
-      and every consumer resolve the root through settings, never through `AppPaths` directly
-- [ ] "Storage location" card (on the Library page, with a mirror in About): current path, size on
-      disk, **Change…** folder picker, **Reset to default**
-- [ ] Changing the location offers to **move** existing content (copy with progress, verify the
-      manifest loads from the new root, then delete the old folder) or leave it and start fresh
-- [ ] The location must be writable and not inside the app folder; validated before saving
-- [ ] Screensaver behaviour when the folder is unavailable at launch (external drive unplugged,
-      network share offline): log it and show the "nothing to play" hint instead of failing
-- [ ] Manifest paths stay relative, so a folder moved by hand (same layout) keeps working
+- [x] `AppSettings.CacheDirectory` (null = `%LOCALAPPDATA%\IslamicScreensaver\cache`) with
+      `ResolvedCacheDirectory`; `ContentCache.For(settings)` used by the screensaver, settings app and seeder
+- [x] "Storage location" card on the Library page (About points at it): current path, size on disk,
+      **Open**, **Change…** folder picker, **Reset**
+- [x] Changing the location offers to **move** existing content (copy with progress, then delete the
+      source — never the other way round) or leave it and start fresh
+- [x] Validation before saving: writable, not inside the app folder, not inside the current folder
+      (`CacheMover.Validate`, unit tested)
+- [x] Screensaver shows a clear hint instead of failing when the folder is unavailable at launch
+- [x] Manifest paths stay relative, so a folder moved by hand (same layout) keeps working
+- [ ] User to try: move the library to another drive and back
 
 ### M7 — Localisation + dark mode (requested 2026-09-13)
 - [ ] Settings app strings moved to resource dictionaries; **Arabic** UI with full RTL layout
@@ -269,7 +277,7 @@ Today's Reciters page mixes two jobs: *what is available online* and *what is on
 | WPF `MediaElement` weak on 4K video | Cap bundled videos at 1080p; evaluate FFME if user files stutter |
 | Blur shader cost on 4K displays | Blur a downscaled capture of the panel region, not the full frame |
 | Translation licences vary | Only ship translations whose licence allows redistribution; list them in About |
-| Some reciters in `resources/recitations` have no hosted surah audio → `chapter_recitations/{id}/{surah}` returns 404 (seen 2026-09-13) | M5b: query `chapter_recitations/{id}` first and only offer what exists |
+| Quran.com advertises audio the CDN does not host → the MP3 URL 404s even though the API lists the file (confirmed 2026-09-13: reciter 8 Minshawi Mujawwad, `siddiq_al-minshawi/mujawwad/001.mp3`) | M5b: a 404 marks that surah unavailable, is not retried, and never aborts the job; unavailable surahs are remembered and shown as such |
 | **Quran.com timing data is misaligned for some surahs** (confirmed 2026-09-13: reciter 7, surah 78 — Al-Fatihah is fine; audio and timings come from the same API response, so it is upstream data) | Test other reciters/surahs in M6; compare against Quran.com's own player; evaluate the newer `audio/reciters/{id}/audio_files?segments=true` endpoint as an alternate timing source; surface `SyncOffsetMs` in Settings |
 
 Open:
@@ -296,4 +304,6 @@ Open:
 | 2026-09-13 | A verse is on screen from its first word's timestamp until the next verse's first word | Matches the timing data's own granularity; `SyncOffsetMs` setting exists as a manual trim |
 | 2026-09-13 | Glass effect via WPF `BlurEffect` + `VisualBrush`, not a custom HLSL shader | Same GPU path, no `fxc` build dependency; grain is a tiled noise brush, tint a colour layer |
 | 2026-09-13 | Bundled backgrounds are procedural (gradients, tiled drawings), not image files | Resolution-independent, tiny, and no asset licensing to track |
+| 2026-09-14 | Downloads are per-reciter (Reciters → reciter page), separate from playback selection (Library, Surahs) | "What is on disk" and "what plays" are different questions; conflating them made downloads follow the surah selection |
+| 2026-09-14 | A 404 is data, not an error: remembered as unavailable, never retried, never aborts a batch | Quran.com lists recordings its CDN does not host; one bad file must not stop a 114-surah download |
 | 2026-09-13 | Settings app on .NET 10's built-in Fluent theme + a few in-house controls (nav pane, toggle switch, settings card), superseding WPF UI (lepo.co) | Covers the design with one fewer dependency; the pieces WPF UI added (NavigationView, ToggleSwitch) are small to write and fully under our control |

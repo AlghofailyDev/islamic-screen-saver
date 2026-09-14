@@ -36,11 +36,14 @@
                      BorderThickness="0"
                      ItemContainerStyle="{StaticResource NavItem}"
                      SelectionChanged="Nav_SelectionChanged">
+                <ListBoxItem Tag="library">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8F1;" Style="{StaticResource Icon}" /><TextBlock Text="Library" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                </ListBoxItem>
                 <ListBoxItem Tag="reciters">
                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE720;" Style="{StaticResource Icon}" /><TextBlock Text="Reciters" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
                 </ListBoxItem>
                 <ListBoxItem Tag="surahs">
-                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8F1;" Style="{StaticResource Icon}" /><TextBlock Text="Surahs" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8A4;" Style="{StaticResource Icon}" /><TextBlock Text="Surahs" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
                 </ListBoxItem>
                 <ListBoxItem Tag="background">
                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B9;" Style="{StaticResource Icon}" /><TextBlock Text="Background" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>

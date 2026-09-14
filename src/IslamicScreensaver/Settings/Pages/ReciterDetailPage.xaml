@@ -77,7 +77,9 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type pages:ReciterSurahTile}">
                     <ToggleButton IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,8,8" Cursor="Hand" Focusable="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                  Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}">
+                                  Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}"
+                                  IsEnabled="{Binding IsSelectable}" Opacity="{Binding TileOpacity}"
+                                  ToolTip="{Binding StateText}">
                         <ToggleButton.Template>
                             <ControlTemplate TargetType="ToggleButton">
                                 <Border x:Name="Bd" Height="56" CornerRadius="6" Padding="14,0" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1">

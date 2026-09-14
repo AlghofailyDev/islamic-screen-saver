@@ -11,4 +11,8 @@ If a decision changes, add a row to the decision log instead of rewriting histor
 - `IslamicScreensaver.Core` has no WPF dependency and is where all testable logic lives.
 - The screensaver (`/s` mode) never touches the network; only the settings app downloads.
 - Verse key format is `surah:ayah` (e.g. `2:255`) everywhere.
-- Settings: `%APPDATA%\IslamicScreensaver\settings.json`. Cache: `%LOCALAPPDATA%\IslamicScreensaver\cache\`.
+- Settings: `%APPDATA%\IslamicScreensaver\settings.json`. Downloads default to
+  `%LOCALAPPDATA%\IslamicScreensaver\cache\` but the user can move them — always resolve the root with
+  `ContentCache.For(settings)`, never `AppPaths.CacheDirectory` directly.
+- Quran.com lists recordings its CDN does not host. A 404 is expected data: mark it unavailable, skip
+  it, carry on — never abort a batch or surface a raw HTTP message.
