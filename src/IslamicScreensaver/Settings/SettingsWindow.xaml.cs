@@ -54,6 +54,7 @@ public partial class SettingsWindow : Window
                 "library" => new LibraryPage(_context, () => SelectNav("reciters")),
                 "reciters" => new RecitersPage(_context),
                 "surahs" => new SurahsPage(_context),
+                "audio" => new AudioPage(_context),
                 "background" => new BackgroundPage(_context),
                 "appearance" => new AppearancePage(_context),
                 "translation" => new TranslationPage(_context),

@@ -45,6 +45,9 @@
                 <ListBoxItem Tag="surahs">
                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8A4;" Style="{StaticResource Icon}" /><TextBlock Text="Surahs" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
                 </ListBoxItem>
+                <ListBoxItem Tag="audio">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE767;" Style="{StaticResource Icon}" /><TextBlock Text="Audio" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                </ListBoxItem>
                 <ListBoxItem Tag="background">
                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B9;" Style="{StaticResource Icon}" /><TextBlock Text="Background" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
                 </ListBoxItem>

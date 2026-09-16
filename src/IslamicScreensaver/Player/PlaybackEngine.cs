@@ -92,7 +92,7 @@ internal sealed class PlaybackEngine : IDisposable
         _source = new PlaylistAudioSource(PathFor, _playlist.Count, _startIndex, _startOffset);
         var volume = new VolumeSampleProvider(_source) { Volume = (float)_settings.Volume };
 
-        _output = CreateOutput();
+        _output = CreateOutput(_settings.OutputDeviceId);
         _output.PlaybackStopped += OnPlaybackStopped;
         _output.Init(volume);
         _output.Play();
@@ -115,20 +115,35 @@ internal sealed class PlaybackEngine : IDisposable
         return null;
     }
 
-    private static IWavePlayer CreateOutput()
+    /// <summary>Builds the output, honouring the chosen device and falling back rather than going silent.</summary>
+    internal static IWavePlayer CreateOutput(string? deviceId)
     {
+        var device = AudioDevices.Resolve(deviceId);
         try
         {
-            return new WasapiPlayerBuilder()
+            var builder = new WasapiPlayerBuilder()
                 .WithSharedMode()
                 .WithEventSync()
                 .WithLatency(OutputLatencyMs)
-                .WithCategory(AudioStreamCategory.Media)
-                .Build();
+                .WithCategory(AudioStreamCategory.Media);
+
+            if (device is not null)
+            {
+                builder = builder.WithDevice(device);
+                Log.Info($"Audio output: {device.FriendlyName}.");
+            }
+            else
+            {
+                // No device pinned (or the pinned one is gone): follow Windows, including later default changes.
+                builder = builder.WithDefaultDeviceStreamRouting();
+            }
+
+            return builder.Build();
         }
         catch (Exception ex)
         {
             Log.Error("WASAPI output unavailable; falling back to WaveOut.", ex);
+            device?.Dispose();
             return new WaveOut { BufferMilliseconds = OutputLatencyMs };
         }
     }

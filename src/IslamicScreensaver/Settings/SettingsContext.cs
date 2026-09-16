@@ -22,6 +22,7 @@ internal sealed class SettingsContext
     {
         Settings = SettingsStore.Load();
         Api = new QuranApiClient(new HttpClient());
+        Samples = new SamplePlayer(() => Settings.OutputDeviceId);
         UseCacheAt(Settings.ResolvedCacheDirectory);
 
         Reciters = Cache.ReadReciters() ?? [];
@@ -36,7 +37,7 @@ internal sealed class SettingsContext
     public ContentCache Cache { get; private set; } = null!;
     public IQuranApi Api { get; }
     public DownloadManager Downloads { get; private set; } = null!;
-    public SamplePlayer Samples { get; } = new();
+    public SamplePlayer Samples { get; }
 
     /// <summary>Points the cache and downloader at <paramref name="directory"/>, rebuilding both.</summary>
     public void UseCacheAt(string directory)

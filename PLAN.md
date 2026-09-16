@@ -226,16 +226,18 @@ Search stays local (filtering the cached catalog), so typing costs no requests.
       download folder is on a drive that is not attached
 
 ### M5c — Audio page: output device + playback (requested 2026-09-13)
-- [ ] New **Audio** page in Settings; Volume and Text timing move here from Reciters
-- [ ] **Output device** picker: "System default" or a specific render endpoint, listed live via
-      NAudio's `MMDeviceEnumerator` (active devices only, friendly names). Use case: headset is the
-      Windows default, but the screensaver should play through the speakers
-- [ ] Persisted as the endpoint id (`AppSettings.OutputDeviceId`, null = default); resolved at
-      launch, falling back to the default device — with a log line — if the saved one is missing/unplugged
-- [ ] `PlaybackEngine` builds the WASAPI player with `.WithDevice(...)`; the Listen buttons in
-      Settings use the same device so what you test is what you get
-- [ ] "Test" button on the page plays a short cached sample through the chosen device
-- [ ] Optional: follow device changes at runtime (default-device routing when "System default" is chosen)
+- [x] New **Audio** page in Settings; Volume and Text timing moved here from Reciters
+- [x] **Output device** picker: "System default" or a specific render endpoint, listed live via
+      NAudio's `MMDeviceEnumerator` (active devices only, friendly names), with a Refresh button
+- [x] Persisted as the endpoint id (`AppSettings.OutputDeviceId`, null = default) plus its name;
+      resolved at launch, falling back to the default — with a log line — if it is missing/unplugged.
+      An unplugged saved device still appears in the list, marked "(not connected)", with a note
+- [x] `PlaybackEngine.CreateOutput` builds the WASAPI player with `.WithDevice(...)`; the Listen
+      buttons use the same builder so what you test is what you get
+- [x] "Test" button plays a downloaded surah through the chosen device (toggles to Stop)
+- [x] "System default" uses `.WithDefaultDeviceStreamRouting()`, so it follows Windows at runtime
+- [x] Verified on this PC 2026-09-16: 4 endpoints listed (HyperX headset, HyperX speakers, 2 monitors)
+- [ ] User to try: pick the speakers while the headset is the Windows default
 
 ### M5d — Custom storage location (requested 2026-09-13)
 - [x] `AppSettings.CacheDirectory` (null = `%LOCALAPPDATA%\IslamicScreensaver\cache`) with
@@ -304,6 +306,7 @@ Open:
 | 2026-09-13 | A verse is on screen from its first word's timestamp until the next verse's first word | Matches the timing data's own granularity; `SyncOffsetMs` setting exists as a manual trim |
 | 2026-09-13 | Glass effect via WPF `BlurEffect` + `VisualBrush`, not a custom HLSL shader | Same GPU path, no `fxc` build dependency; grain is a tiled noise brush, tint a colour layer |
 | 2026-09-13 | Bundled backgrounds are procedural (gradients, tiled drawings), not image files | Resolution-independent, tiny, and no asset licensing to track |
+| 2026-09-16 | The output device is pinned by endpoint id, and a missing one silently falls back to the system default | A screensaver must never be silent because a speaker was unplugged; the Settings page says when the choice is not currently connected |
 | 2026-09-14 | Downloads are per-reciter (Reciters → reciter page), separate from playback selection (Library, Surahs) | "What is on disk" and "what plays" are different questions; conflating them made downloads follow the surah selection |
 | 2026-09-14 | A 404 is data, not an error: remembered as unavailable, never retried, never aborts a batch | Quran.com lists recordings its CDN does not host; one bad file must not stop a 114-surah download |
 | 2026-09-13 | Settings app on .NET 10's built-in Fluent theme + a few in-house controls (nav pane, toggle switch, settings card), superseding WPF UI (lepo.co) | Covers the design with one fewer dependency; the pieces WPF UI added (NavigationView, ToggleSwitch) are small to write and fully under our control |

@@ -1,15 +1,25 @@
 using IslamicScreensaver.Core;
+using IslamicScreensaver.Player;
 using NAudio.MediaFoundation;
 using NAudio.Wave;
 
 namespace IslamicScreensaver.Settings;
 
-/// <summary>Plays one cached file at a time for the "listen" buttons; a second call stops the first.</summary>
+/// <summary>
+/// Plays one cached file at a time for the "listen" buttons; a second call stops the first.
+/// Uses the same output device as the screensaver so a test sounds where the real thing will.
+/// </summary>
 internal sealed class SamplePlayer : IDisposable
 {
-    private WaveOut? _output;
+    private readonly Func<string?> _deviceId;
+    private IWavePlayer? _output;
     private MediaFoundationReader? _reader;
     private string? _playingKey;
+
+    public SamplePlayer(Func<string?> deviceId)
+    {
+        _deviceId = deviceId;
+    }
 
     public event Action<string?>? PlayingChanged;
 
@@ -28,7 +38,8 @@ internal sealed class SamplePlayer : IDisposable
         {
             MediaFoundationApi.Startup();
             _reader = new MediaFoundationReader(path);
-            _output = new WaveOut { Volume = volume };
+            _output = PlaybackEngine.CreateOutput(_deviceId());
+            _output.Volume = volume;
             _output.PlaybackStopped += (_, _) => { if (_playingKey == key) Stop(); };
             _output.Init(_reader);
             _output.Play();
@@ -44,8 +55,15 @@ internal sealed class SamplePlayer : IDisposable
 
     public void Stop()
     {
-        _output?.Stop();
-        _output?.Dispose();
+        try
+        {
+            _output?.Stop();
+            _output?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Stopping the sample failed.", ex);
+        }
         _reader?.Dispose();
         _output = null;
         _reader = null;

@@ -74,20 +74,6 @@
         </Border>
         <TextBlock x:Name="EmptyText" Text="The reciter list has not been fetched yet — connect to the internet and click Refresh list." Style="{StaticResource Caption}" Margin="0,8,0,0" Visibility="Collapsed" />
 
-        <TextBlock Text="Playback" Style="{StaticResource SectionTitle}" />
-        <c:SettingsCard Header="Volume">
-            <StackPanel Orientation="Horizontal">
-                <Slider x:Name="Volume" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="100" ValueChanged="Volume_Changed" />
-                <TextBlock x:Name="VolumeValue" Style="{StaticResource SliderValue}" />
-            </StackPanel>
-        </c:SettingsCard>
-        <c:SettingsCard Header="Text timing" Description="Nudge the verse text later (+) or earlier (−) if it does not match a reciter">
-            <StackPanel Orientation="Horizontal">
-                <Slider x:Name="SyncOffset" Style="{StaticResource SettingSlider}" Minimum="-2000" Maximum="2000" TickFrequency="50" IsSnapToTickEnabled="True" ValueChanged="SyncOffset_Changed" />
-                <TextBlock x:Name="SyncOffsetValue" Style="{StaticResource SliderValue}" Width="64" />
-            </StackPanel>
-        </c:SettingsCard>
-
         <TextBlock x:Name="StorageText" Style="{StaticResource Caption}" Margin="0,16,0,0" />
     </StackPanel>
 </UserControl>

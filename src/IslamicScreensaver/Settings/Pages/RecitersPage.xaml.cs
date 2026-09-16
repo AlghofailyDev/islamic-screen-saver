@@ -12,7 +12,6 @@ public partial class RecitersPage : UserControl
 {
     private readonly SettingsContext _ctx;
     private readonly List<ReciterRow> _rows = [];
-    private bool _loading;
 
     internal RecitersPage(SettingsContext ctx)
     {
@@ -37,14 +36,7 @@ public partial class RecitersPage : UserControl
                 row.RefreshPlaying();
         };
 
-        _loading = true;
         Rotate.IsChecked = _ctx.Settings.RotateReciters;
-        Volume.Value = _ctx.Settings.Volume * 100;
-        SyncOffset.Value = _ctx.Settings.SyncOffsetMs;
-        _loading = false;
-        VolumeValue.Text = $"{Volume.Value:0}%";
-        SyncOffsetValue.Text = $"{SyncOffset.Value:+0;-0;0} ms";
-
         Rebuild();
     }
 
@@ -148,21 +140,6 @@ public partial class RecitersPage : UserControl
             MessageBox.Show("Could not reach Quran.com. Check your connection and try again.", "Refresh failed", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
-    private void Volume_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        VolumeValue.Text = $"{Volume.Value:0}%";
-        if (_loading) return;
-        _ctx.Settings.Volume = Volume.Value / 100;
-        _ctx.Changed();
-    }
-
-    private void SyncOffset_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        SyncOffsetValue.Text = $"{SyncOffset.Value:+0;-0;0} ms";
-        if (_loading) return;
-        _ctx.Settings.SyncOffsetMs = (int)SyncOffset.Value;
-        _ctx.Changed();
-    }
 }
 
 /// <summary>One reciter in the list: playback selection, download state, listen and open buttons.</summary>

@@ -64,6 +64,15 @@ public sealed class AppSettings
     /// </summary>
     public int SyncOffsetMs { get; set; }
 
+    /// <summary>
+    /// Which speakers to play through, as a Windows endpoint id. Null follows the system default — so a
+    /// headset can stay the default while the screensaver plays through the room's speakers.
+    /// </summary>
+    public string? OutputDeviceId { get; set; }
+
+    /// <summary>Remembered only so Settings can name a device that is currently unplugged.</summary>
+    public string? OutputDeviceName { get; set; }
+
     public bool ShowTranslation { get; set; } = true;
 
     /// <summary>Quran.com translation resource id.</summary>
@@ -97,6 +106,11 @@ public sealed class AppSettings
         ReciterIds = ReciterIds.Where(id => id > 0).Distinct().ToList();
         if (string.IsNullOrWhiteSpace(CacheDirectory))
             CacheDirectory = null;
+        if (string.IsNullOrWhiteSpace(OutputDeviceId))
+        {
+            OutputDeviceId = null;
+            OutputDeviceName = null;
+        }
         SelectedSurahs = SelectedSurahs?.Where(s => s is >= 1 and <= 114).Distinct().Order().ToList();
         if (SelectedSurahs is { Count: 0 })
             SelectedSurahs = null;
