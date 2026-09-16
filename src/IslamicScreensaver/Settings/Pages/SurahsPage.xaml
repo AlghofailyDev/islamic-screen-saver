@@ -38,10 +38,15 @@
                     <UniformGrid Columns="3" />
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
+            <!-- Collapse the generated container, not just its content, so filtered-out tiles leave no gap. -->
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                    <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}" />
+                </Style>
+            </ItemsControl.ItemContainerStyle>
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type pages:SurahTile}">
-                    <ToggleButton IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,8,8" Cursor="Hand" Focusable="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                  Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}">
+                    <ToggleButton IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,8,8" Cursor="Hand" Focusable="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                         <ToggleButton.Template>
                             <ControlTemplate TargetType="ToggleButton">
                                 <Border x:Name="Bd" Height="56" CornerRadius="6" Padding="14,0" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1">

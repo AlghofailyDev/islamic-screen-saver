@@ -27,10 +27,15 @@
 
         <Border Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8">
             <ItemsControl x:Name="List">
+                <!-- Collapse the generated container, not just its content, so filtered-out rows leave no gap. -->
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}" />
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type pages:ReciterRow}">
                         <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,0" MinHeight="64" Background="Transparent"
-                                Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}"
                                 MouseLeftButtonUp="Row_Click" Cursor="Hand">
                             <Grid>
                                 <Grid.ColumnDefinitions>
