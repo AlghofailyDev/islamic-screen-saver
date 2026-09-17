@@ -328,6 +328,7 @@ Open:
 | 2026-09-13 | Bundled backgrounds are procedural (gradients, tiled drawings), not image files | Resolution-independent, tiny, and no asset licensing to track |
 | 2026-09-17 | Quran.com surah recordings are treated uniformly: only Al-Fatihah contains the basmalah | Confirmed by the user; per-file special-casing would be unmaintainable across 114 surahs × every reciter |
 | 2026-09-17 | The isti'ādhah and basmalah are not settings — no toggles, no file pickers | They are part of how the Qur'an is recited, not a matter of taste; making them optional would invite reciting without them |
+| 2026-09-17 | "Continue where it left off" now applies to shuffled play as well as sequential | The order is reshuffled every launch, but the setting is about carrying on the surah you were hearing, which is just as meaningful when shuffled |
 | 2026-09-17 | Audio from outside Quran.com is loudness-matched to the recitation rather than trusted to be level | The isti'ādhah measured 2.5× louder than the recitation; a jump in volume is jarring at night |
 | 2026-09-16 | The output device is pinned by endpoint id, and a missing one silently falls back to the system default | A screensaver must never be silent because a speaker was unplugged; the Settings page says when the choice is not currently connected |
 | 2026-09-14 | Downloads are per-reciter (Reciters → reciter page), separate from playback selection (Library, Surahs) | "What is on disk" and "what plays" are different questions; conflating them made downloads follow the surah selection |

@@ -105,7 +105,12 @@ internal sealed class PlaybackEngine : IDisposable
         // is dropped, so translate it into the segments that actually exist.
         _loopStart = LoopStartSegment(steps);
 
-        _source = new SegmentAudioSource(_segments, _loopStart, _startOffset);
+        // The resume offset belongs to the surah being resumed, which sits after the opening isti'ādhah.
+        var resumeSegment = _startOffset > TimeSpan.Zero
+            ? _segments.Select((s, i) => (s, i)).FirstOrDefault(x => x.s.IsSurah).i
+            : 0;
+
+        _source = new SegmentAudioSource(_segments, _loopStart, _startOffset, resumeSegment);
         var volume = new VolumeSampleProvider(_source) { Volume = (float)_settings.Volume };
 
         _output = CreateOutput(_settings.OutputDeviceId);
@@ -115,7 +120,7 @@ internal sealed class PlaybackEngine : IDisposable
 
         var preludes = _segments.Count(s => !s.IsSurah);
         Log.Info($"Program: {_segments.Count} segment(s), {preludes} prelude(s)" +
-                 (_startOffset > TimeSpan.Zero ? $", resuming {_playlist[_startIndex].ReciterId}/{_playlist[_startIndex].Surah} at {_startOffset.TotalSeconds:0.0}s" : "") + ".");
+                 (_startOffset > TimeSpan.Zero ? $", resuming {_playlist[_startIndex].ReciterId}/{_playlist[_startIndex].Surah} at {_startOffset.TotalSeconds:0.0}s (segment {resumeSegment})" : "") + ".");
 
         _tick.Start();
         Poll();

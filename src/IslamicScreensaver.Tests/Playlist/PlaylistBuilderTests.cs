@@ -124,15 +124,25 @@ public class PlaylistBuilderTests
     }
 
     [Fact]
-    public void StartIndex_ResumesAtLastSurah_OnlyWhenSequentialAndEnabled()
+    public void StartIndex_ResumesAtLastSurah_WhenEnabled()
     {
         var playlist = new List<PlaylistItem> { new(7, 1), new(7, 2), new(7, 3) };
         var last = new PlaybackState { ReciterId = 7, Surah = 2 };
 
         Assert.Equal(1, PlaylistBuilder.StartIndex(playlist, new AppSettings(), last));
         Assert.Equal(0, PlaylistBuilder.StartIndex(playlist, new AppSettings { ResumeWhereLeftOff = false }, last));
-        Assert.Equal(0, PlaylistBuilder.StartIndex(playlist, new AppSettings { Order = PlayOrder.Shuffled }, last));
         Assert.Equal(0, PlaylistBuilder.StartIndex(playlist, new AppSettings(), null));
         Assert.Equal(0, PlaylistBuilder.StartIndex(playlist, new AppSettings(), new PlaybackState { Surah = 99 }));
+    }
+
+    [Fact]
+    public void StartIndex_ResumesUnderShuffleToo_SinceTheSurahIsWhatMatters()
+    {
+        // The order is reshuffled every launch, but "continue where it left off" still means
+        // carrying on the surah that was playing.
+        var playlist = new List<PlaylistItem> { new(7, 3), new(7, 1), new(7, 2) };
+        var last = new PlaybackState { ReciterId = 7, Surah = 2 };
+
+        Assert.Equal(2, PlaylistBuilder.StartIndex(playlist, new AppSettings { Order = PlayOrder.Shuffled }, last));
     }
 }

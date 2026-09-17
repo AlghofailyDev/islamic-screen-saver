@@ -19,35 +19,61 @@ internal sealed class SegmentAudioSource : ISampleProvider, IDisposable
 
     private readonly record struct Marker(long StreamFrame, int SegmentIndex, long FileStartFrame);
 
+    private readonly record struct Opened(ISampleProvider Samples, IDisposable Reader, TimeSpan Offset);
+
     private readonly IReadOnlyList<AudioSegment> _segments;
     private readonly int _loopStart;
     private readonly object _gate = new();
     private readonly List<Marker> _markers = [];
 
+    /// <summary>Where to resume, and which segment it belongs to — used once, not on every lap.</summary>
+    private readonly TimeSpan _resumeOffset;
+    private readonly int _resumeSegment;
+    private bool _resumeUsed;
+
     private ISampleProvider? _current;
     private IDisposable? _currentReader;
     private int _currentIndex;
     private long _streamFrames;
-    private Task<(ISampleProvider, IDisposable)?>? _prefetch;
+    private Task<Opened?>? _prefetch;
     private int _prefetchIndex = -1;
     private bool _disposed;
 
-    public SegmentAudioSource(IReadOnlyList<AudioSegment> segments, int loopStart, TimeSpan startOffset)
+    /// <param name="resumeSegment">Index of the segment the offset applies to — the surah being resumed, not the opening isti'ādhah.</param>
+    public SegmentAudioSource(IReadOnlyList<AudioSegment> segments, int loopStart, TimeSpan resumeOffset, int resumeSegment)
     {
         _segments = segments;
         _loopStart = Math.Clamp(loopStart, 0, Math.Max(0, segments.Count - 1));
+        _resumeOffset = resumeOffset;
+        _resumeSegment = resumeSegment;
+        _resumeUsed = resumeOffset <= TimeSpan.Zero;
         _currentIndex = 0;
 
-        if (segments.Count > 0 && Open(0, startOffset) is { } opened)
+        if (segments.Count > 0 && Open(0) is { } opened)
         {
-            (_current, _currentReader) = opened;
-            _markers.Add(new Marker(0, 0, (long)((segments[0].Start + startOffset).TotalSeconds * SampleRate)));
+            _current = opened.Samples;
+            _currentReader = opened.Reader;
+            ConsumeResume(0);
+            _markers.Add(new Marker(0, 0, FileFrame(segments[0], opened.Offset)));
         }
         else
         {
             AdvanceLocked();
         }
         StartPrefetch();
+    }
+
+    private static long FileFrame(AudioSegment segment, TimeSpan offset) =>
+        (long)((segment.Start + offset).TotalSeconds * SampleRate);
+
+    /// <summary>The resume offset, if this is the segment it belongs to and it has not been used yet.</summary>
+    private TimeSpan PeekResume(int index) =>
+        !_resumeUsed && index == _resumeSegment ? _resumeOffset : TimeSpan.Zero;
+
+    private void ConsumeResume(int index)
+    {
+        if (index == _resumeSegment)
+            _resumeUsed = true;
     }
 
     public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, Channels);
@@ -124,11 +150,13 @@ internal sealed class SegmentAudioSource : ISampleProvider, IDisposable
             var next = NextIndex(_currentIndex);
             _currentIndex = next;
 
-            var opened = TakePrefetch(next) ?? Open(next, TimeSpan.Zero);
+            var opened = TakePrefetch(next) ?? Open(next);
             if (opened is { } o)
             {
-                (_current, _currentReader) = o;
-                _markers.Add(new Marker(_streamFrames, next, (long)(_segments[next].Start.TotalSeconds * SampleRate)));
+                _current = o.Samples;
+                _currentReader = o.Reader;
+                ConsumeResume(next);
+                _markers.Add(new Marker(_streamFrames, next, FileFrame(_segments[next], o.Offset)));
                 if (_markers.Count > 8)
                     _markers.RemoveAt(0);
                 return;
@@ -147,10 +175,12 @@ internal sealed class SegmentAudioSource : ISampleProvider, IDisposable
         if (_prefetchIndex == next)
             return;
         _prefetchIndex = next;
-        _prefetch = Task.Run(() => Open(next, TimeSpan.Zero));
+        // Peeked, not consumed: the offset is only spent when this segment actually starts playing.
+        var offset = PeekResume(next);
+        _prefetch = Task.Run(() => Open(next, offset));
     }
 
-    private (ISampleProvider, IDisposable)? TakePrefetch(int index)
+    private Opened? TakePrefetch(int index)
     {
         if (_prefetch is null || _prefetchIndex != index)
             return null;
@@ -168,8 +198,10 @@ internal sealed class SegmentAudioSource : ISampleProvider, IDisposable
         }
     }
 
+    private Opened? Open(int index) => Open(index, PeekResume(index));
+
     /// <summary>Opens a segment and normalises it to the stream format (44.1 kHz stereo float).</summary>
-    private (ISampleProvider, IDisposable)? Open(int index, TimeSpan extraOffset)
+    private Opened? Open(int index, TimeSpan extraOffset)
     {
         var segment = _segments[index];
         try
@@ -197,7 +229,7 @@ internal sealed class SegmentAudioSource : ISampleProvider, IDisposable
             if (Math.Abs(segment.Gain - 1f) > 0.001f)
                 samples = new VolumeSampleProvider(samples) { Volume = segment.Gain };
 
-            return (samples, reader);
+            return new Opened(samples, reader, extraOffset);
         }
         catch (Exception ex)
         {
@@ -217,6 +249,6 @@ internal sealed class SegmentAudioSource : ISampleProvider, IDisposable
             _currentReader = null;
             _current = null;
         }
-        try { _prefetch?.GetAwaiter().GetResult()?.Item2.Dispose(); } catch { /* best effort */ }
+        try { _prefetch?.GetAwaiter().GetResult()?.Reader.Dispose(); } catch { /* best effort */ }
     }
 }

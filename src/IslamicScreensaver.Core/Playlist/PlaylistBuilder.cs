@@ -80,10 +80,13 @@ public static class PlaylistBuilder
         return playlist;
     }
 
-    /// <summary>Where to begin: the surah last played when resuming sequentially, otherwise the top.</summary>
+    /// <summary>
+    /// Where to begin: the surah that was playing last time, or the top. Shuffled play resumes too —
+    /// the order is new each time, but carrying on the surah you were hearing is the point of the setting.
+    /// </summary>
     public static int StartIndex(IReadOnlyList<PlaylistItem> playlist, AppSettings settings, PlaybackState? lastState)
     {
-        if (playlist.Count == 0 || settings.Order != PlayOrder.Sequential || !settings.ResumeWhereLeftOff || lastState is null)
+        if (playlist.Count == 0 || !settings.ResumeWhereLeftOff || lastState is null)
             return 0;
 
         // Prefer the exact item (same reciter) so a multi-pass rotation carries on where it stopped;
