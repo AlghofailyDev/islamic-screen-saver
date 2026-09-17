@@ -33,8 +33,11 @@ internal sealed class PlaybackEngine : IDisposable
     private readonly int _startIndex;
     private readonly TimeSpan _startOffset;
 
-    private PlaylistAudioSource? _source;
+    private SegmentAudioSource? _source;
     private IWavePlayer? _output;
+    private IReadOnlyList<AudioSegment> _segments = [];
+    private int _loopStart;
+    private int _segmentIndex = -1;
     private int _index = -1;
 
     // Per-surah context.
@@ -89,7 +92,20 @@ internal sealed class PlaybackEngine : IDisposable
             return;
 
         MediaFoundationApi.Startup();
-        _source = new PlaylistAudioSource(PathFor, _playlist.Count, _startIndex, _startOffset);
+
+        var steps = RecitationProgram.Build(_playlist, _startIndex, startsMidSurah: _startOffset > TimeSpan.Zero);
+        _segments = SegmentBuilder.Build(steps, _cache);
+        if (_segments.Count == 0)
+        {
+            Log.Error("No playable audio in the program; nothing to start.");
+            return;
+        }
+
+        // The loop point is expressed in steps; a step with no audio (a missing isti'ādhah recording)
+        // is dropped, so translate it into the segments that actually exist.
+        _loopStart = LoopStartSegment(steps);
+
+        _source = new SegmentAudioSource(_segments, _loopStart, _startOffset);
         var volume = new VolumeSampleProvider(_source) { Volume = (float)_settings.Volume };
 
         _output = CreateOutput(_settings.OutputDeviceId);
@@ -97,22 +113,21 @@ internal sealed class PlaybackEngine : IDisposable
         _output.Init(volume);
         _output.Play();
 
-        if (_startOffset > TimeSpan.Zero)
-            Log.Info($"Resuming {_playlist[_startIndex].ReciterId}/{_playlist[_startIndex].Surah} at {_startOffset.TotalSeconds:0.0}s.");
+        var preludes = _segments.Count(s => !s.IsSurah);
+        Log.Info($"Program: {_segments.Count} segment(s), {preludes} prelude(s)" +
+                 (_startOffset > TimeSpan.Zero ? $", resuming {_playlist[_startIndex].ReciterId}/{_playlist[_startIndex].Surah} at {_startOffset.TotalSeconds:0.0}s" : "") + ".");
 
         _tick.Start();
         Poll();
     }
 
-    private string? PathFor(int index)
+    private int LoopStartSegment(IReadOnlyList<RecitationStep> steps)
     {
-        var item = _playlist[index];
-        var path = _cache.AudioPath(item.ReciterId, item.Surah);
-        if (File.Exists(path))
-            return path;
+        if (RecitationProgram.LoopStart(steps) == 0)
+            return 0;
 
-        Log.Error($"Audio missing for {item.ReciterId}/{item.Surah} despite manifest; skipping.");
-        return null;
+        // Skip a leading isti'ādhah segment if one was actually produced.
+        return _segments.Count > 0 && _segments[0].Part == RecitationPart.Istiadhah && _segments.Count > 1 ? 1 : 0;
     }
 
     /// <summary>Builds the output, honouring the chosen device and falling back rather than going silent.</summary>
@@ -155,14 +170,14 @@ internal sealed class PlaybackEngine : IDisposable
     }
 
     /// <summary>Playback position of the audio the listener is hearing right now.</summary>
-    private (int ItemIndex, TimeSpan Position)? Heard()
+    private (AudioSegment Segment, int SegmentIndex, TimeSpan Position)? Heard()
     {
         if (_output is not { } output || _source is null || output.OutputWaveFormat is not { } format)
             return null;
 
         var bytes = ((IWavePosition)output).GetPosition();
         var seconds = (double)bytes / format.AverageBytesPerSecond;
-        return _source.Locate((long)(seconds * PlaylistAudioSource.SampleRate));
+        return _source.Locate((long)(seconds * SegmentAudioSource.SampleRate));
     }
 
     private void Poll()
@@ -170,8 +185,16 @@ internal sealed class PlaybackEngine : IDisposable
         if (_disposed || Heard() is not { } heard)
             return;
 
-        if (heard.ItemIndex != _index)
-            EnterSurah(heard.ItemIndex);
+        if (heard.SegmentIndex != _segmentIndex)
+            EnterSegment(heard.SegmentIndex, heard.Segment);
+
+        if (!heard.Segment.IsSurah)
+        {
+            // A prelude has no verses; keep the panel on its text and run the hairline across it.
+            if (heard.Segment.Duration is { } duration && duration > TimeSpan.Zero)
+                VerseProgress?.Invoke(Math.Clamp((heard.Position - heard.Segment.Start) / duration, 0, 1));
+            return;
+        }
 
         var ms = (int)heard.Position.TotalMilliseconds - _settings.SyncOffsetMs;
         var position = _clock.Lookup(ms);
@@ -190,10 +213,26 @@ internal sealed class PlaybackEngine : IDisposable
         VerseProgress?.Invoke(_clock.Progress(position.VerseIndex, ms));
     }
 
-    private void EnterSurah(int index)
+    private void EnterSegment(int segmentIndex, AudioSegment segment)
     {
-        _index = index;
-        var item = _playlist[index];
+        _segmentIndex = segmentIndex;
+        var item = segment.Item;
+
+        if (!segment.IsSurah)
+        {
+            var chapter = ChapterFor(item.Surah);
+            Log.Info($"Playing the {(segment.Part == RecitationPart.Istiadhah ? "istiadhah" : "basmalah")} before {chapter.NameSimple}.");
+            VerseChanged?.Invoke(VerseDisplay.Prelude(
+                segment.Part == RecitationPart.Istiadhah,
+                chapter.NameArabic, chapter.NameSimple, chapter.VersesCount,
+                _reciterNames.GetValueOrDefault(item.ReciterId, $"Reciter {item.ReciterId}"),
+                _settings.ShowTranslation));
+            WordChanged?.Invoke(0);
+            VerseProgress?.Invoke(0);
+            return;
+        }
+
+        _index = segment.PlaylistIndex;
         _clock = new VerseClock(_cache.ReadTimings(item.ReciterId, item.Surah) ?? []);
         _verses = _cache.ReadSurahText(item.Surah) ?? [];
         _translation = _settings.ShowTranslation ? _cache.ReadSurahTranslation(_settings.TranslationId, item.Surah) : null;

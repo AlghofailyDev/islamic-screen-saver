@@ -25,6 +25,12 @@
     <PackageReference Include="NAudio" Version="3.1.0" />
   </ItemGroup>
 
+  <!-- Shipped alongside the binary: the isti'ādhah recording, and any Quran font the user drops in. -->
+  <ItemGroup>
+    <Content Include="..\..\assets\audio\**\*" Link="assets\audio\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\fonts\**\*" Link="assets\fonts\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!--
     Windows recognises a screensaver by its .scr extension. The .NET apphost locates its DLL and
     runtimeconfig by its own file name minus extension, so renaming the published exe is all it takes.

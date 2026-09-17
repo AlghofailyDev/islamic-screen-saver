@@ -73,6 +73,9 @@ public sealed class AppSettings
     /// <summary>Remembered only so Settings can name a device that is currently unplugged.</summary>
     public string? OutputDeviceName { get; set; }
 
+    // The isti'ādhah and the basmalah are part of how the Qur'an is recited, not preferences:
+    // they always play, so there is nothing about them here.
+
     public bool ShowTranslation { get; set; } = true;
 
     /// <summary>Quran.com translation resource id.</summary>

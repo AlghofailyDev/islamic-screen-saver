@@ -225,6 +225,26 @@ Search stays local (filtering the cached catalog), so typing costs no requests.
 - [x] Keep working offline: Library reads only the cache; the screensaver shows a clear hint when the
       download folder is on a drive that is not attached
 
+### M5e — Isti'ādhah and basmalah before recitation (requested 2026-09-17)
+Etiquette of recitation: the isti'ādhah once when recitation begins, the basmalah before each surah.
+Quran.com's recordings are uniform — **only Al-Fatihah contains the basmalah** (as its first verse) —
+so every other surah needs one supplied. At-Tawbah is recited without one.
+- [x] `RecitationProgram` (Core, unit tested) turns a playlist into steps: isti'ādhah once, basmalah
+      where needed, then each surah; resuming mid-surah skips that surah's basmalah but keeps the isti'ādhah
+- [x] Basmalah audio comes from the same reciter's Al-Fatihah, verse 1 sliced by its own timings —
+      their own voice, no extra download, no licensing question (`Core/Playlist/BasmalahSource`, unit tested)
+- [x] **When that reciter's Al-Fatihah is not downloaded** (older downloads, or the user deleted it),
+      a bundled basmalah recording is used instead; the Audio page names those reciters and offers to
+      download their Al-Fatihah so their own voice is used
+- [x] Al-Fatihah is fetched alongside any reciter download while the basmalah is enabled (< 1 MB)
+- [x] Isti'ādhah and fallback basmalah ship in `assets/audio/`; either can be replaced by a user file
+- [x] Their level is matched to the recitation automatically (`Loudness.MatchGain`), since they come
+      from a different master — measured 0.39× on the shipped isti'ādhah
+- [x] The panel shows the isti'ādhah / basmalah text and translation while they play
+- [x] **Not configurable**: this is how the Qur'an is recited, so there are no toggles, no file
+      pickers and nothing to switch off — the bundled recordings are always used
+- [x] Verified end to end 2026-09-17
+
 ### M5c — Audio page: output device + playback (requested 2026-09-13)
 - [x] New **Audio** page in Settings; Volume and Text timing moved here from Reciters
 - [x] **Output device** picker: "System default" or a specific render endpoint, listed live via
@@ -306,6 +326,9 @@ Open:
 | 2026-09-13 | A verse is on screen from its first word's timestamp until the next verse's first word | Matches the timing data's own granularity; `SyncOffsetMs` setting exists as a manual trim |
 | 2026-09-13 | Glass effect via WPF `BlurEffect` + `VisualBrush`, not a custom HLSL shader | Same GPU path, no `fxc` build dependency; grain is a tiled noise brush, tint a colour layer |
 | 2026-09-13 | Bundled backgrounds are procedural (gradients, tiled drawings), not image files | Resolution-independent, tiny, and no asset licensing to track |
+| 2026-09-17 | Quran.com surah recordings are treated uniformly: only Al-Fatihah contains the basmalah | Confirmed by the user; per-file special-casing would be unmaintainable across 114 surahs × every reciter |
+| 2026-09-17 | The isti'ādhah and basmalah are not settings — no toggles, no file pickers | They are part of how the Qur'an is recited, not a matter of taste; making them optional would invite reciting without them |
+| 2026-09-17 | Audio from outside Quran.com is loudness-matched to the recitation rather than trusted to be level | The isti'ādhah measured 2.5× louder than the recitation; a jump in volume is jarring at night |
 | 2026-09-16 | The output device is pinned by endpoint id, and a missing one silently falls back to the system default | A screensaver must never be silent because a speaker was unplugged; the Settings page says when the choice is not currently connected |
 | 2026-09-14 | Downloads are per-reciter (Reciters → reciter page), separate from playback selection (Library, Surahs) | "What is on disk" and "what plays" are different questions; conflating them made downloads follow the surah selection |
 | 2026-09-14 | A 404 is data, not an error: remembered as unavailable, never retried, never aborts a batch | Quran.com lists recordings its CDN does not host; one bad file must not stop a 114-surah download |

@@ -43,7 +43,6 @@ public partial class AudioPage : UserControl
         Device.SelectedItem = devices.FirstOrDefault(d => d.Id == savedId) ?? devices[0];
         _loading = false;
 
-        var selected = (AudioDevice)Device.SelectedItem;
         var missing = savedId is not null && AudioDevices.Resolve(savedId) is null;
         DeviceNote.Visibility = missing ? Visibility.Visible : Visibility.Collapsed;
         DeviceNote.Text = missing
@@ -87,7 +86,7 @@ public partial class AudioPage : UserControl
     private void UpdateTestButton()
     {
         var playing = _ctx.Samples.PlayingKey == TestKey;
-        TestGlyph.Text = playing ? "\uE71A" : "\uE768";
+        TestGlyph.Text = playing ? "" : "";
         TestLabel.Text = playing ? "Stop" : "Test";
     }
 

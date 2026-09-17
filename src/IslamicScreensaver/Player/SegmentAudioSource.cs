@@ -5,48 +5,46 @@ using NAudio.Wave.SampleProviders;
 namespace IslamicScreensaver.Player;
 
 /// <summary>
-/// One endless sample stream made of the playlist's surahs back to back (wrapping at the end).
-/// Every time a new file starts, a marker records the stream sample it started at, so a "samples
-/// rendered by the device" count from the output can be mapped back to (playlist index, position in
-/// that file) with sample accuracy. That mapping is the whole reason this class exists: the sound
-/// card's own clock is the only one that stays honest with variable-bitrate MP3s.
+/// One endless sample stream made of the program's segments back to back, looping at
+/// <paramref name="loopStart"/> so a session opener (the isti'ādhah) is not repeated. Every time a
+/// segment starts, a marker records the stream sample it started at, so a "samples rendered by the
+/// device" count maps back to (segment, position in that file) with sample accuracy — the sound
+/// card's own clock being the only one that stays honest with variable-bitrate MP3s.
 /// </summary>
 /// <remarks><see cref="Read"/> runs on the output device's thread; everything else on the UI thread.</remarks>
-internal sealed class PlaylistAudioSource : ISampleProvider, IDisposable
+internal sealed class SegmentAudioSource : ISampleProvider, IDisposable
 {
     public const int SampleRate = 44100;
     public const int Channels = 2;
 
-    private readonly record struct Marker(long StreamFrame, int ItemIndex, long FileStartFrame);
+    private readonly record struct Marker(long StreamFrame, int SegmentIndex, long FileStartFrame);
 
-    private readonly Func<int, string?> _pathForIndex;
-    private readonly int _count;
+    private readonly IReadOnlyList<AudioSegment> _segments;
+    private readonly int _loopStart;
     private readonly object _gate = new();
     private readonly List<Marker> _markers = [];
 
     private ISampleProvider? _current;
     private IDisposable? _currentReader;
     private int _currentIndex;
-    private long _streamFrames;          // frames handed to the output so far
+    private long _streamFrames;
     private Task<(ISampleProvider, IDisposable)?>? _prefetch;
     private int _prefetchIndex = -1;
     private bool _disposed;
 
-    public PlaylistAudioSource(Func<int, string?> pathForIndex, int count, int startIndex, TimeSpan startOffset)
+    public SegmentAudioSource(IReadOnlyList<AudioSegment> segments, int loopStart, TimeSpan startOffset)
     {
-        _pathForIndex = pathForIndex;
-        _count = count;
-        _currentIndex = startIndex;
+        _segments = segments;
+        _loopStart = Math.Clamp(loopStart, 0, Math.Max(0, segments.Count - 1));
+        _currentIndex = 0;
 
-        var opened = Open(startIndex, startOffset);
-        if (opened is { } o)
+        if (segments.Count > 0 && Open(0, startOffset) is { } opened)
         {
-            (_current, _currentReader) = o;
-            _markers.Add(new Marker(0, startIndex, (long)(startOffset.TotalSeconds * SampleRate)));
+            (_current, _currentReader) = opened;
+            _markers.Add(new Marker(0, 0, (long)((segments[0].Start + startOffset).TotalSeconds * SampleRate)));
         }
         else
         {
-            // First file unreadable: start the stream at the next one instead.
             AdvanceLocked();
         }
         StartPrefetch();
@@ -54,8 +52,8 @@ internal sealed class PlaylistAudioSource : ISampleProvider, IDisposable
 
     public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, Channels);
 
-    /// <summary>Which playlist item, and how far into its file, the sample at <paramref name="streamFrame"/> belongs to.</summary>
-    public (int ItemIndex, TimeSpan Position)? Locate(long streamFrame)
+    /// <summary>Which segment, and how far into its file, the sample at <paramref name="streamFrame"/> belongs to.</summary>
+    public (AudioSegment Segment, int SegmentIndex, TimeSpan Position)? Locate(long streamFrame)
     {
         lock (_gate)
         {
@@ -65,7 +63,7 @@ internal sealed class PlaylistAudioSource : ISampleProvider, IDisposable
                 if (m.StreamFrame <= streamFrame)
                 {
                     var fileFrame = m.FileStartFrame + (streamFrame - m.StreamFrame);
-                    return (m.ItemIndex, TimeSpan.FromSeconds((double)fileFrame / SampleRate));
+                    return (_segments[m.SegmentIndex], m.SegmentIndex, TimeSpan.FromSeconds((double)fileFrame / SampleRate));
                 }
             }
             return null;
@@ -104,7 +102,6 @@ internal sealed class PlaylistAudioSource : ISampleProvider, IDisposable
                 continue;
             }
 
-            // Current file exhausted: the next marker starts exactly at the frames counted so far.
             lock (_gate)
                 AdvanceLocked();
             StartPrefetch();
@@ -118,17 +115,20 @@ internal sealed class PlaylistAudioSource : ISampleProvider, IDisposable
         _current = null;
         _currentReader = null;
 
-        // Try each item once; if none opens, _current stays null and silence plays.
-        for (var attempt = 0; attempt < _count; attempt++)
+        if (_segments.Count == 0)
+            return;
+
+        // Try each segment once; if none opens, _current stays null and silence plays.
+        for (var attempt = 0; attempt < _segments.Count; attempt++)
         {
-            var next = (_currentIndex + 1) % _count;
+            var next = NextIndex(_currentIndex);
             _currentIndex = next;
 
             var opened = TakePrefetch(next) ?? Open(next, TimeSpan.Zero);
             if (opened is { } o)
             {
                 (_current, _currentReader) = o;
-                _markers.Add(new Marker(_streamFrames, next, 0));
+                _markers.Add(new Marker(_streamFrames, next, (long)(_segments[next].Start.TotalSeconds * SampleRate)));
                 if (_markers.Count > 8)
                     _markers.RemoveAt(0);
                 return;
@@ -136,10 +136,15 @@ internal sealed class PlaylistAudioSource : ISampleProvider, IDisposable
         }
     }
 
+    /// <summary>After the last segment, go back to the loop point rather than to the session opener.</summary>
+    private int NextIndex(int index) => index + 1 >= _segments.Count ? _loopStart : index + 1;
+
     private void StartPrefetch()
     {
-        var next = (_currentIndex + 1) % _count;
-        if (_count <= 1 || _prefetchIndex == next)
+        if (_segments.Count <= 1)
+            return;
+        var next = NextIndex(_currentIndex);
+        if (_prefetchIndex == next)
             return;
         _prefetchIndex = next;
         _prefetch = Task.Run(() => Open(next, TimeSpan.Zero));
@@ -158,34 +163,45 @@ internal sealed class PlaylistAudioSource : ISampleProvider, IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error($"Prefetch of playlist item {index} failed.", ex);
+            Log.Error($"Prefetch of segment {index} failed.", ex);
             return null;
         }
     }
 
-    /// <summary>Opens a file and normalises it to the stream format (44.1 kHz stereo float).</summary>
-    private (ISampleProvider, IDisposable)? Open(int index, TimeSpan offset)
+    /// <summary>Opens a segment and normalises it to the stream format (44.1 kHz stereo float).</summary>
+    private (ISampleProvider, IDisposable)? Open(int index, TimeSpan extraOffset)
     {
-        var path = _pathForIndex(index);
-        if (path is null)
-            return null;
-
+        var segment = _segments[index];
         try
         {
-            var reader = new MediaFoundationReader(path);
-            if (offset > TimeSpan.Zero && offset < reader.TotalTime)
-                reader.CurrentTime = offset;
+            var reader = new MediaFoundationReader(segment.Path);
+            var start = segment.Start + extraOffset;
+            if (start > TimeSpan.Zero && start < reader.TotalTime)
+                reader.CurrentTime = start;
 
             ISampleProvider samples = reader.ToSampleProvider();
             if (samples.WaveFormat.Channels == 1)
                 samples = new MonoToStereoSampleProvider(samples);
             if (samples.WaveFormat.SampleRate != SampleRate)
                 samples = new WdlResamplingSampleProvider(samples, SampleRate);
+
+            // A sliced segment (the basmalah taken from Al-Fatihah) stops at its own end.
+            if (segment.Duration is { } duration)
+            {
+                var remaining = duration - extraOffset;
+                if (remaining <= TimeSpan.Zero)
+                    return null;
+                samples = new OffsetSampleProvider(samples) { Take = remaining };
+            }
+
+            if (Math.Abs(segment.Gain - 1f) > 0.001f)
+                samples = new VolumeSampleProvider(samples) { Volume = segment.Gain };
+
             return (samples, reader);
         }
         catch (Exception ex)
         {
-            Log.Error($"Cannot open audio for playlist item {index} ({path}).", ex);
+            Log.Error($"Cannot open {segment.Part} audio for segment {index} ({segment.Path}).", ex);
             return null;
         }
     }

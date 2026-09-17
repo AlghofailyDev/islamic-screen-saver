@@ -159,7 +159,9 @@ public partial class ReciterDetailPage : UserControl
         var surahs = _tiles.Where(t => t.IsSelected && t.State == SurahState.Missing).Select(t => t.Number).ToList();
         if (surahs.Count == 0)
             return;
-        _ctx.Downloads.EnqueueReciter(_reciter.Id, surahs);
+
+        // Al-Fatihah always comes along: its first verse is this reciter's basmalah.
+        _ctx.Downloads.EnqueueReciter(_reciter.Id, surahs, alsoAlFatihah: true);
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)

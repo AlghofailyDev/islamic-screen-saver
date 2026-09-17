@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Playlist;
 
 namespace IslamicScreensaver.Settings;
 
@@ -49,9 +50,17 @@ internal sealed class DownloadManager
 
     public JobProgress? ProgressOf(string key) => _active.GetValueOrDefault(key);
 
-    public void EnqueueReciter(int reciterId, IReadOnlyList<int> surahs)
+    /// <param name="alsoAlFatihah">
+    /// Fetch Al-Fatihah too when it is missing: its first verse is the basmalah, which is played
+    /// before other surahs in this reciter's own voice. It is under a megabyte.
+    /// </param>
+    public void EnqueueReciter(int reciterId, IReadOnlyList<int> surahs, bool alsoAlFatihah = false)
     {
-        var pending = surahs.Where(s => !_cache.HasSurahAudio(reciterId, s) && !_cache.IsUnavailable(reciterId, s)).ToList();
+        var wanted = surahs.ToList();
+        if (alsoAlFatihah && !wanted.Contains(RecitationProgram.AlFatihah))
+            wanted.Insert(0, RecitationProgram.AlFatihah);
+
+        var pending = wanted.Where(s => !_cache.HasSurahAudio(reciterId, s) && !_cache.IsUnavailable(reciterId, s)).ToList();
         Enqueue($"reciter:{reciterId}", async (progress, ct) =>
         {
             var unavailable = 0;
