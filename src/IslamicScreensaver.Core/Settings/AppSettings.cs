@@ -6,6 +6,22 @@ public enum PlayOrder
     Shuffled,
 }
 
+public enum AppTheme
+{
+    /// <summary>Follow the Windows app theme.</summary>
+    System,
+    Light,
+    Dark,
+}
+
+public enum AppLanguage
+{
+    /// <summary>Arabic if Windows is set to Arabic, otherwise English.</summary>
+    System,
+    English,
+    Arabic,
+}
+
 public enum BackgroundKind
 {
     /// <summary>One of the visuals shipped with the app, named by <see cref="BackgroundSettings.BundledName"/>.</summary>
@@ -75,6 +91,12 @@ public sealed class AppSettings
 
     // The isti'ādhah and the basmalah are part of how the Qur'an is recited, not preferences:
     // they always play, so there is nothing about them here.
+
+    /// <summary>Light or dark chrome for the settings app. The screensaver itself is always dark.</summary>
+    public AppTheme Theme { get; set; } = AppTheme.System;
+
+    /// <summary>Language of the settings app and the screensaver's own labels — not the translation.</summary>
+    public AppLanguage Language { get; set; } = AppLanguage.System;
 
     public bool ShowTranslation { get; set; } = true;
 

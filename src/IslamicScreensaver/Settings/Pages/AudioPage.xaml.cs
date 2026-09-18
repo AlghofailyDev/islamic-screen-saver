@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Player;
 
 namespace IslamicScreensaver.Settings.Pages;
@@ -36,7 +37,7 @@ public partial class AudioPage : UserControl
 
         // A device that is saved but unplugged still belongs in the list, so the choice is not silently lost.
         if (savedId is not null && devices.All(d => d.Id != savedId))
-            devices.Add(new AudioDevice(savedId, $"{_ctx.Settings.OutputDeviceName ?? "Saved device"} (not connected)"));
+            devices.Add(new AudioDevice(savedId, Strings.Get("audio.notConnected", _ctx.Settings.OutputDeviceName ?? Strings.Get("status.savedDevice"))));
 
         _loading = true;
         Device.ItemsSource = devices;
@@ -46,7 +47,7 @@ public partial class AudioPage : UserControl
         var missing = savedId is not null && AudioDevices.Resolve(savedId) is null;
         DeviceNote.Visibility = missing ? Visibility.Visible : Visibility.Collapsed;
         DeviceNote.Text = missing
-            ? $"“{_ctx.Settings.OutputDeviceName ?? "The chosen device"}” isn't connected right now — the screensaver will use the system default until it is back."
+            ? Strings.Get("status.deviceNotConnected", _ctx.Settings.OutputDeviceName ?? Strings.Get("status.savedDevice"))
             : string.Empty;
     }
 
@@ -76,7 +77,7 @@ public partial class AudioPage : UserControl
         var surah = reciter == 0 ? 0 : _ctx.Cache.CachedSurahsFor(reciter).OrderByDescending(s => s).FirstOrDefault();
         if (surah == 0)
         {
-            MessageBox.Show("Download a surah first, then you can test the output here.", "Nothing to play", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(Strings.Get("dialog.downloadFirstTest"), Strings.Get("dialog.nothingToPlay"), MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -87,7 +88,7 @@ public partial class AudioPage : UserControl
     {
         var playing = _ctx.Samples.PlayingKey == TestKey;
         TestGlyph.Text = playing ? "" : "";
-        TestLabel.Text = playing ? "Stop" : "Test";
+        TestLabel.Text = Strings.Get(playing ? "common.stop" : "common.test");
     }
 
     private void Volume_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)

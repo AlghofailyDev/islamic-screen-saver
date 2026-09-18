@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
 
 namespace IslamicScreensaver.Settings.Pages;
 
@@ -28,7 +29,7 @@ public partial class RecitersPage : UserControl
         _ctx.Downloads.Failed += (key, message) =>
         {
             if (key.StartsWith("reciter:"))
-                MessageBox.Show(message, "Download failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(message, Strings.Get("dialog.downloadFailed"), MessageBoxButton.OK, MessageBoxImage.Warning);
         };
         _ctx.Samples.PlayingChanged += _ =>
         {
@@ -104,7 +105,9 @@ public partial class RecitersPage : UserControl
             row.IsVisible = row.Matches(query);
             if (row.IsVisible) visible++;
         }
-        CountText.Text = _rows.Count == 0 ? string.Empty : query.Length == 0 ? $"{_rows.Count} reciters" : $"{visible} of {_rows.Count}";
+        CountText.Text = _rows.Count == 0 ? string.Empty
+            : query.Length == 0 ? Strings.Get("reciters.count", _rows.Count)
+            : Strings.Get("surahs.someSelected", visible, _rows.Count);
     }
 
     private void Search_Changed(object sender, TextChangedEventArgs e) => ApplySearch();
@@ -115,7 +118,7 @@ public partial class RecitersPage : UserControl
         {
             var dir = new DirectoryInfo(_ctx.Cache.RootDirectory);
             var bytes = dir.Exists ? dir.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length) : 0;
-            StorageText.Text = $"{bytes / 1024.0 / 1024.0:0.0} MB on disk  ·  {_ctx.Cache.RootDirectory}";
+            StorageText.Text = Strings.Get("status.mbOnDisk", (bytes / 1024.0 / 1024.0).ToString("0.0"), _ctx.Cache.RootDirectory);
         }
         catch (Exception ex)
         {
@@ -137,7 +140,7 @@ public partial class RecitersPage : UserControl
         if (sender is Button b2)
             b2.IsEnabled = true;
         if (!ok)
-            MessageBox.Show("Could not reach Quran.com. Check your connection and try again.", "Refresh failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Strings.Get("dialog.cannotReach"), Strings.Get("dialog.refreshFailed"), MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
 }
@@ -167,7 +170,7 @@ internal sealed class ReciterRow : ObservableObject
         Reciter = reciter;
         Id = reciter.Id;
         Name = reciter.Name;
-        Subtitle = reciter.Style ?? "Recitation";
+        Subtitle = reciter.Style ?? Strings.Get("status.recitation");
         _isSelected = isSelected;
         JobKey = $"reciter:{reciter.Id}";
 
@@ -223,7 +226,9 @@ internal sealed class ReciterRow : ObservableObject
 
         var have = _ctx.Cache.CachedSurahsFor(Id).Count;
         IsComplete = have == 114;
-        StatusText = have == 0 ? "Nothing downloaded" : have == 114 ? "All 114 surahs" : $"{have} of 114 downloaded";
+        StatusText = have == 0 ? Strings.Get("reciters.nothingDownloaded")
+            : have == 114 ? Strings.Get("reciters.allSurahs")
+            : Strings.Get("reciters.someDownloaded", have);
     }
 
     public void OnJob(JobProgress? progress)
@@ -238,7 +243,9 @@ internal sealed class ReciterRow : ObservableObject
 
         IsDownloading = true;
         Progress = progress.Fraction;
-        StatusText = progress.CurrentItem is null ? "Finishing…" : $"Downloading {progress.CurrentItem}  ·  {progress.Done} of {progress.Total}";
+        StatusText = progress.CurrentItem is null
+            ? Strings.Get("status.finishing")
+            : Strings.Get("status.downloadingOf", progress.CurrentItem, progress.Done, progress.Total);
     }
 
     public void RefreshPlaying() => Raise(nameof(PlayGlyph));
@@ -248,7 +255,7 @@ internal sealed class ReciterRow : ObservableObject
         var cached = _ctx.Cache.CachedSurahsFor(Id);
         if (cached.Count == 0)
         {
-            MessageBox.Show("Download something from this reciter first, then you can listen.", "Nothing downloaded yet", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(Strings.Get("dialog.downloadFirst"), Strings.Get("dialog.nothingDownloadedYet"), MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         // Prefer a short surah so the sample is representative but brief.

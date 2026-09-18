@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Player;
 using IslamicScreensaver.Rendering;
@@ -69,6 +70,7 @@ public partial class VersePanel : UserControl
         arabic.Inlines.Clear();
         translation.Text = text;
         translation.Visibility = Visibility.Visible;
+        translation.FlowDirection = Strings.IsRightToLeftText(text) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
     }
 
     public void Show(VerseDisplay verse)
@@ -79,7 +81,7 @@ public partial class VersePanel : UserControl
 
         ChipArabic.Text = verse.SurahNameArabic;
         ChipEnglish.Text = verse.SurahNameSimple;
-        ChipVerse.Text = verse.IsBismillah ? string.Empty : $"Verse {verse.VerseNumber} of {verse.VersesCount}";
+        ChipVerse.Text = verse.IsBismillah ? string.Empty : Strings.Get("screensaver.verseOf", verse.VerseNumber, verse.VersesCount);
         ChipSeparator2.Visibility = ChipVerse.Visibility = verse.IsBismillah ? Visibility.Collapsed : Visibility.Visible;
 
         // Fill the hidden layer, then crossfade to it. First verse simply appears.
@@ -141,6 +143,10 @@ public partial class VersePanel : UserControl
 
         translation.Text = verse.Translation ?? string.Empty;
         translation.Visibility = string.IsNullOrEmpty(verse.Translation) ? Visibility.Collapsed : Visibility.Visible;
+        // The translation follows its own language, not the app's: English stays left-to-right under Arabic chrome.
+        translation.FlowDirection = Strings.IsRightToLeftText(verse.Translation)
+            ? FlowDirection.RightToLeft
+            : FlowDirection.LeftToRight;
     }
 
     private (TextBlock Arabic, TextBlock Translation) ActiveBlocks() =>

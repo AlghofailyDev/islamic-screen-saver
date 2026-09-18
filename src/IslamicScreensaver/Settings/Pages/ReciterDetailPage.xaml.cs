@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
 
 namespace IslamicScreensaver.Settings.Pages;
 
@@ -22,7 +23,7 @@ public partial class ReciterDetailPage : UserControl
         InitializeComponent();
 
         Title.Text = reciter.Name;
-        Subtitle.Text = reciter.Style ?? "Recitation";
+        Subtitle.Text = reciter.Style ?? Strings.Get("status.recitation");
         Initials.Text = string.Concat(reciter.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
 
         foreach (var chapter in _ctx.Chapters)
@@ -79,18 +80,18 @@ public partial class ReciterDetailPage : UserControl
             return;
 
         StatusText.Text = downloaded == obtainable && obtainable > 0
-            ? (unavailable == 0 ? "All 114 surahs downloaded" : $"All {obtainable} available surahs downloaded")
-            : downloaded == 0 ? "Nothing downloaded yet"
-            : $"{downloaded} of {obtainable} surahs downloaded";
+            ? (unavailable == 0 ? Strings.Get("status.allDownloaded") : Strings.Get("status.allAvailableDownloaded", obtainable))
+            : downloaded == 0 ? Strings.Get("status.nothingDownloadedYet")
+            : Strings.Get("status.downloadedOf", downloaded, obtainable);
         StatusDetail.Text = selected.Count == 0
             ? unavailable > 0
                 ? $"{unavailable} surah{(unavailable == 1 ? " is" : "s are")} not hosted by Quran.com for this reciter."
-                : "Select surahs below, or use Select all / Select missing."
-            : toDownload == 0 ? "Everything selected is already downloaded." : $"{toDownload} selected surah{(toDownload == 1 ? "" : "s")} to download";
+                : Strings.Get("status.selectBelow")
+            : toDownload == 0 ? Strings.Get("status.alreadyDownloaded") : Strings.Get("status.toDownload", toDownload);
 
-        DownloadButton.Content = toDownload > 0 ? $"Download {toDownload}" : "Download selected";
+        DownloadButton.Content = toDownload > 0 ? Strings.Get("status.downloadN", toDownload) : Strings.Get("reciters.downloadSelected");
         DownloadButton.IsEnabled = toDownload > 0;
-        DeleteButton.Content = toDelete > 0 ? $"Delete {toDelete}" : "Delete selected";
+        DeleteButton.Content = toDelete > 0 ? Strings.Get("status.deleteN", toDelete) : Strings.Get("reciters.deleteSelected");
         DeleteButton.IsEnabled = toDelete > 0;
         Progress.Visibility = Visibility.Collapsed;
     }
@@ -129,9 +130,9 @@ public partial class ReciterDetailPage : UserControl
 
         Progress.Visibility = Visibility.Visible;
         Progress.Value = progress.Fraction;
-        StatusText.Text = progress.CurrentItem is null ? "Finishing…" : $"Downloading {progress.CurrentItem}";
-        StatusDetail.Text = $"{progress.Done} of {progress.Total} done";
-        DownloadButton.Content = "Cancel";
+        StatusText.Text = progress.CurrentItem is null ? Strings.Get("status.finishing") : Strings.Get("status.downloadingItem", progress.CurrentItem);
+        StatusDetail.Text = Strings.Get("status.doneOf", progress.Done, progress.Total);
+        DownloadButton.Content = Strings.Get("common.cancel");
         DownloadButton.IsEnabled = true;
         DeleteButton.IsEnabled = false;
     }
@@ -139,13 +140,13 @@ public partial class ReciterDetailPage : UserControl
     private void OnJobFailed(string key, string message)
     {
         if (key == JobKey)
-            MessageBox.Show(message, "Download failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(message, Strings.Get("dialog.downloadFailed"), MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private void OnJobNotice(string key, string message)
     {
         if (key == JobKey)
-            MessageBox.Show(message, "Some surahs were skipped", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(message, Strings.Get("dialog.someSkipped"), MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private void Download_Click(object sender, RoutedEventArgs e)
@@ -171,8 +172,8 @@ public partial class ReciterDetailPage : UserControl
             return;
 
         var answer = MessageBox.Show(
-            $"Delete {surahs.Count} downloaded surah{(surahs.Count == 1 ? "" : "s")} by {_reciter.Name} from this PC?",
-            "Delete downloads", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+            Strings.Get("dialog.deleteSelectedAsk", surahs.Count, _reciter.Name),
+            Strings.Get("dialog.deleteDownloads"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (answer != MessageBoxResult.Yes)
             return;
 
@@ -213,7 +214,7 @@ public partial class ReciterDetailPage : UserControl
         var cached = _ctx.Cache.CachedSurahsFor(_reciter.Id);
         if (cached.Count == 0)
         {
-            MessageBox.Show("Download a surah first, then you can listen.", "Nothing downloaded yet", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(Strings.Get("dialog.downloadFirst"), Strings.Get("dialog.nothingDownloadedYet"), MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         var surah = cached.OrderByDescending(s => s).First();
@@ -280,10 +281,10 @@ internal sealed class ReciterSurahTile : ObservableObject
 
     public string StateText => _state switch
     {
-        SurahState.Downloaded => "Downloaded",
-        SurahState.Downloading => "Downloading…",
-        SurahState.Unavailable => "Not available",
-        _ => "Not downloaded",
+        SurahState.Downloaded => Strings.Get("common.downloaded"),
+        SurahState.Downloading => Strings.Get("reciters.downloading"),
+        SurahState.Unavailable => Strings.Get("reciters.notAvailable"),
+        _ => Strings.Get("reciters.notDownloaded"),
     };
 
     public string StateGlyph => _state switch

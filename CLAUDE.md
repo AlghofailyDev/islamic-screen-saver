@@ -16,3 +16,7 @@ If a decision changes, add a row to the decision log instead of rewriting histor
   `ContentCache.For(settings)`, never `AppPaths.CacheDirectory` directly.
 - Quran.com lists recordings its CDN does not host. A 404 is expected data: mark it unavailable, skip
   it, carry on — never abort a batch or surface a raw HTTP message.
+- No user-visible string is written inline. Add a key to `Core/Localisation/Strings` with both English
+  and Arabic (a test fails otherwise), then use `{s:Loc key}` in XAML or `Strings.Get` in code.
+- Theme brushes are referenced with `DynamicResource`, never `StaticResource`, so dark mode can swap
+  them at runtime. Content keeps its own text direction — see `Strings.IsRightToLeftText`.

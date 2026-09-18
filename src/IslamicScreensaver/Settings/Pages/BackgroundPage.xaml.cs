@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Rendering;
 using Microsoft.Win32;
@@ -54,7 +55,7 @@ public partial class BackgroundPage : UserControl
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Choose a background",
+            Title = Strings.Get("dialog.chooseBackground"),
             Filter = "Images and videos|*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.mp4;*.mov;*.wmv;*.mkv;*.m4v|Images|*.jpg;*.jpeg;*.png;*.bmp;*.webp|Videos|*.mp4;*.mov;*.wmv;*.mkv;*.m4v|All files|*.*",
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
         };

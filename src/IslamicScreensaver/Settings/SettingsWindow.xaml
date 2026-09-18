@@ -7,9 +7,8 @@
         MinWidth="900"
         MinHeight="600"
         WindowStartupLocation="CenterScreen"
-        ThemeMode="Light"
-        FontFamily="{StaticResource UiFont}"
-        Background="{StaticResource WindowBackgroundBrush}"
+        FontFamily="{DynamicResource UiFont}"
+        Background="{DynamicResource WindowBackgroundBrush}"
         TextOptions.TextFormattingMode="Ideal">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -26,8 +25,8 @@
             </Grid.RowDefinitions>
 
             <StackPanel Orientation="Horizontal" Margin="12,10,0,18">
-                <Border Width="16" Height="16" CornerRadius="4" Background="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-                <TextBlock Text="Islamic Screensaver" Style="{StaticResource Body}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" />
+                <Border Width="16" Height="16" CornerRadius="4" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="AppName" Style="{StaticResource Body}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" />
             </StackPanel>
 
             <ListBox x:Name="Nav"
@@ -69,7 +68,7 @@
                         <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE946;" Style="{StaticResource Icon}" /><TextBlock Text="About" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
                     </ListBoxItem>
                 </ListBox>
-                <Button Content="Run screensaver now" Style="{StaticResource AccentButton}" Margin="4,8,4,0" HorizontalAlignment="Stretch" Click="RunScreensaver_Click" />
+                <Button x:Name="RunButton" Style="{StaticResource AccentButton}" Margin="4,8,4,0" HorizontalAlignment="Stretch" Click="RunScreensaver_Click" />
             </StackPanel>
         </Grid>
 

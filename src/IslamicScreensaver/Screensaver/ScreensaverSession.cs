@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Playlist;
 using IslamicScreensaver.Core.Screensaver;
 using IslamicScreensaver.Core.Settings;
@@ -28,6 +29,7 @@ internal sealed class ScreensaverSession
 
     public void Start()
     {
+        Strings.Use(_settings.Language);
         var monitors = DisplayMonitor.All();
         Log.Info($"Screensaver starting on {monitors.Count} monitor(s).");
 
@@ -66,7 +68,7 @@ internal sealed class ScreensaverSession
         {
             Log.Error($"Download folder {cache.RootDirectory} is not available; nothing to play.");
             foreach (var panel in panels)
-                panel.ShowHint("The folder holding the recitations isn't available right now — reconnect the drive, or choose another folder in Settings.");
+                panel.ShowHint(Strings.Get("screensaver.folderMissing"));
             return;
         }
 
@@ -76,7 +78,7 @@ internal sealed class ScreensaverSession
         {
             Log.Info("Nothing cached to play; showing hint.");
             foreach (var panel in panels)
-                panel.ShowHint("No recitations downloaded yet — open the screensaver's Settings to choose a reciter.");
+                panel.ShowHint(Strings.Get("screensaver.nothing"));
             return;
         }
 

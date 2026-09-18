@@ -273,12 +273,20 @@ so every other surah needs one supplied. At-Tawbah is recited without one.
 - [ ] User to try: move the library to another drive and back
 
 ### M7 — Localisation + dark mode (requested 2026-09-13)
-- [ ] Settings app strings moved to resource dictionaries; **Arabic** UI with full RTL layout
-      (`FlowDirection="RightToLeft"` on the window, mirrored nav pane and icons, Arabic UI font)
-- [ ] Language picker in Settings (System / English / العربية); screensaver chip and labels follow it
-- [ ] **Dark mode** for Settings: `Window.ThemeMode` Light/Dark/System plus a dark variant of every
-      palette brush in `Theme.xaml` (cards, nav, dividers, text); thumbnails and live preview unaffected
-- [ ] Theme picker in Settings (System / Light / Dark) and Windows accent colour option
+- [x] All UI text in one place (`Core/Localisation/Strings`), English + Arabic side by side; a test
+      fails if any key lacks a translation. XAML uses `{s:Loc key}`, code uses `Strings.Get`
+- [x] **Arabic** UI with full RTL layout (window `FlowDirection`, mirrored nav pane, Arabic UI font)
+- [x] Direction follows the *content*, not the UI: an English translation and a Latin reciter name stay
+      left-to-right inside an Arabic layout; hex codes, paths and measurements likewise (`IsRightToLeftText`)
+- [x] Language picker on Appearance (System / English / العربية); the screensaver's chip, verse counter
+      and reciter caption follow it
+- [x] **Dark mode**: `ThemePalette` swaps every brush at runtime (Theme.xaml uses `DynamicResource`),
+      and `Window.ThemeMode` drives WPF's own Fluent controls — applied after `InitializeComponent`,
+      which is what makes combo boxes and scroll bars follow
+- [x] Theme picker on Appearance (System / Light / Dark); System reads Windows' `AppsUseLightTheme`
+- [x] Changing either rebuilds the shell in place, keeping the open page
+- [x] Verified on screen 2026-09-18: settings and screensaver in Arabic dark
+- [ ] Windows accent colour as an option (deferred; the green accent is the app's identity)
 
 ### M6 — Hardening + release
 - [ ] Locked / secure-desktop behaviour tested (audio, cache access)
@@ -326,6 +334,8 @@ Open:
 | 2026-09-13 | A verse is on screen from its first word's timestamp until the next verse's first word | Matches the timing data's own granularity; `SyncOffsetMs` setting exists as a manual trim |
 | 2026-09-13 | Glass effect via WPF `BlurEffect` + `VisualBrush`, not a custom HLSL shader | Same GPU path, no `fxc` build dependency; grain is a tiled noise brush, tint a colour layer |
 | 2026-09-13 | Bundled backgrounds are procedural (gradients, tiled drawings), not image files | Resolution-independent, tiny, and no asset licensing to track |
+| 2026-09-18 | One in-code string table rather than RESX satellite assemblies | The two languages sit side by side so a gap is obvious, and a unit test can fail on any untranslated key |
+| 2026-09-18 | Text direction is decided per string by its own letters, not by the UI language | A translation, a reciter's Latin name, a file path and a hex code each keep their natural direction inside an Arabic layout |
 | 2026-09-17 | Quran.com surah recordings are treated uniformly: only Al-Fatihah contains the basmalah | Confirmed by the user; per-file special-casing would be unmaintainable across 114 surahs × every reciter |
 | 2026-09-17 | The isti'ādhah and basmalah are not settings — no toggles, no file pickers | They are part of how the Qur'an is recited, not a matter of taste; making them optional would invite reciting without them |
 | 2026-09-17 | "Continue where it left off" now applies to shuffled play as well as sequential | The order is reshuffled every launch, but the setting is about carrying on the surah you were hearing, which is just as meaningful when shuffled |

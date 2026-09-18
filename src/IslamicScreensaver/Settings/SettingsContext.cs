@@ -69,6 +69,9 @@ internal sealed class SettingsContext
     /// <summary>Set by the window: return to the page beneath the current detail page.</summary>
     public Action? NavigateBack { get; set; }
 
+    /// <summary>Set by the window: theme or language changed, so the whole shell must be rebuilt.</summary>
+    public Action? ChromeChanged { get; set; }
+
     /// <summary>Call after mutating <see cref="Settings"/>. Persists shortly afterwards.</summary>
     public void Changed()
     {

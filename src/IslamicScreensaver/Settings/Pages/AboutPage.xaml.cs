@@ -19,6 +19,7 @@ public partial class AboutPage : UserControl
 
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "dev";
         VersionText.Text = $"Islamic Screensaver {version} — Quran recitation with the verse on screen, as a Windows screensaver.";
+        VersionText.FlowDirection = System.Windows.FlowDirection.LeftToRight;
         SettingsCard.Description = AppPaths.SettingsFile;
         _ctx.Downloads.Changed += (_, _) => UpdateCacheSize();
         _ctx.CacheMoved += UpdateCacheSize;

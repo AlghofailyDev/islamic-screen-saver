@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 
 namespace IslamicScreensaver.Settings.Pages;
@@ -18,6 +19,8 @@ public partial class SurahsPage : UserControl
         InitializeComponent();
 
         _loading = true;
+        Order.Items.Add(Strings.Get("surahs.sequential"));
+        Order.Items.Add(Strings.Get("surahs.shuffled"));
         Order.SelectedIndex = _ctx.Settings.Order == PlayOrder.Shuffled ? 1 : 0;
         Resume.IsChecked = _ctx.Settings.ResumeWhereLeftOff;
         _loading = false;
@@ -57,7 +60,9 @@ public partial class SurahsPage : UserControl
     private void UpdateCount()
     {
         var count = _tiles.Count(t => t.IsSelected);
-        CountText.Text = _tiles.Count == 0 ? string.Empty : count == _tiles.Count ? "All 114 selected" : $"{count} of {_tiles.Count} selected";
+        CountText.Text = _tiles.Count == 0 ? string.Empty
+            : count == _tiles.Count ? Strings.Get("surahs.allSelected")
+            : Strings.Get("surahs.someSelected", count, _tiles.Count);
     }
 
     private void SetAll(bool value)

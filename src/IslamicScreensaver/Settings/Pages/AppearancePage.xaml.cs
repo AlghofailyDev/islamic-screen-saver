@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Player;
 
@@ -39,6 +40,53 @@ public partial class AppearancePage : UserControl
         };
 
         LoadControls();
+        LoadChromeControls();
+    }
+
+    /// <summary>Theme and language — they change the whole window, so the shell rebuilds when they do.</summary>
+    private void LoadChromeControls()
+    {
+        _loading = true;
+
+        Theme.Items.Clear();
+        foreach (var (value, key) in new[]
+                 {
+                     (AppTheme.System, "appearance.theme.system"),
+                     (AppTheme.Light, "appearance.theme.light"),
+                     (AppTheme.Dark, "appearance.theme.dark"),
+                 })
+            Theme.Items.Add(new ComboBoxItem { Content = Strings.Get(key), Tag = value });
+        Theme.SelectedItem = Theme.Items.Cast<ComboBoxItem>().First(i => (AppTheme)i.Tag == _ctx.Settings.Theme);
+
+        LanguageBox.Items.Clear();
+        foreach (var (value, text) in new[]
+                 {
+                     (AppLanguage.System, Strings.Get("appearance.language.system")),
+                     (AppLanguage.English, "English"),
+                     (AppLanguage.Arabic, "العربية"),
+                 })
+            LanguageBox.Items.Add(new ComboBoxItem { Content = text, Tag = value });
+        LanguageBox.SelectedItem = LanguageBox.Items.Cast<ComboBoxItem>().First(i => (AppLanguage)i.Tag == _ctx.Settings.Language);
+
+        _loading = false;
+    }
+
+    private void Theme_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || Theme.SelectedItem is not ComboBoxItem { Tag: AppTheme theme })
+            return;
+        _ctx.Settings.Theme = theme;
+        _ctx.Changed();
+        _ctx.ChromeChanged?.Invoke();
+    }
+
+    private void Language_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || LanguageBox.SelectedItem is not ComboBoxItem { Tag: AppLanguage language })
+            return;
+        _ctx.Settings.Language = language;
+        _ctx.Changed();
+        _ctx.ChromeChanged?.Invoke();
     }
 
     private string _sceneSignature = string.Empty;
@@ -65,6 +113,9 @@ public partial class AppearancePage : UserControl
         Blur.Value = p.Blur;
         Grain.Value = p.Grain * 100;
         TintOpacity.Value = p.TintOpacity * 100;
+        TintMode.Items.Clear();
+        TintMode.Items.Add(Strings.Get("appearance.automatic"));
+        TintMode.Items.Add(Strings.Get("appearance.custom"));
         TintMode.SelectedIndex = p.TintColor is null ? 0 : 1;
         TintHex.Text = p.TintColor ?? ToHex(PreviewBackground.SuggestedTint);
         TintHex.IsEnabled = p.TintColor is not null;

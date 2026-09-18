@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Interop;
 using static IslamicScreensaver.Interop.NativeMethods;
@@ -22,6 +23,9 @@ public partial class ScreensaverWindow : Window
         _monitor = monitor;
         _session = session;
         InitializeComponent();
+        ReciterCaption.Text = Strings.Get("screensaver.reciter");
+        // The reciter caption and the hint text read right-to-left in Arabic; the verse panel has its own direction.
+        Overlay.FlowDirection = Strings.IsArabic ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         SourceInitialized += OnSourceInitialized;
         SizeChanged += (_, _) => ScaleOverlay();
         Panel.SetBackdrop(Backdrop);
@@ -44,6 +48,8 @@ public partial class ScreensaverWindow : Window
     internal void SetReciter(string name)
     {
         ReciterName.Text = name;
+        // A Latin name keeps its own direction, so "AbdulBaset AbdulSamad (Murattal)" is not mirrored.
+        ReciterName.FlowDirection = Strings.IsRightToLeftText(name) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         ReciterBlock.Visibility = string.IsNullOrEmpty(name) ? Visibility.Collapsed : Visibility.Visible;
     }
 

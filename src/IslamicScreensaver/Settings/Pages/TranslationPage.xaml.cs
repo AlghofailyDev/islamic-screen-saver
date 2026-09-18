@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
 
 namespace IslamicScreensaver.Settings.Pages;
 
@@ -25,7 +26,7 @@ public partial class TranslationPage : UserControl
         _ctx.Downloads.Failed += (key, message) =>
         {
             if (key == JobKey)
-                MessageBox.Show(message, "Download failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(message, Strings.Get("dialog.downloadFailed"), MessageBoxButton.OK, MessageBoxImage.Warning);
         };
 
         Show.IsChecked = _ctx.Settings.ShowTranslation;
@@ -83,9 +84,10 @@ public partial class TranslationPage : UserControl
 
         StatusText.Text = name;
         StatusDetail.Text = have == wanted.Count
-            ? (wanted.Count == 114 ? "Downloaded for all 114 surahs" : $"Downloaded for all {wanted.Count} selected surahs")
-            : have == 0 ? "Not downloaded yet" : $"{have} of {wanted.Count} surahs downloaded";
-        DownloadButton.Content = have == wanted.Count ? "Downloaded" : "Download";
+            ? Strings.Get("status.allDownloaded")
+            : have == 0 ? Strings.Get("status.nothingDownloadedYet")
+            : Strings.Get("status.downloadedOf", have, wanted.Count);
+        DownloadButton.Content = Strings.Get(have == wanted.Count ? "common.downloaded" : "common.download");
         DownloadButton.IsEnabled = have != wanted.Count;
         Progress.Visibility = Visibility.Collapsed;
     }
@@ -99,8 +101,10 @@ public partial class TranslationPage : UserControl
         }
         Progress.Visibility = Visibility.Visible;
         Progress.Value = progress.Fraction;
-        StatusDetail.Text = progress.CurrentItem is null ? "Finishing…" : $"Downloading {progress.CurrentItem}  ·  {progress.Done} of {progress.Total}";
-        DownloadButton.Content = "Cancel";
+        StatusDetail.Text = progress.CurrentItem is null
+            ? Strings.Get("status.finishing")
+            : Strings.Get("status.downloadingOf", progress.CurrentItem, progress.Done, progress.Total);
+        DownloadButton.Content = Strings.Get("common.cancel");
         DownloadButton.IsEnabled = true;
     }
 

@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 using Microsoft.Win32;
 
@@ -57,8 +58,8 @@ public partial class LibraryPage : UserControl
 
         var surahs = _rows.Sum(r => r.SurahCount);
         SummaryText.Text = _rows.Count == 0
-            ? "Downloaded reciters"
-            : $"{_rows.Count} reciter{(_rows.Count == 1 ? "" : "s")}  ·  {surahs} surah{(surahs == 1 ? "" : "s")}";
+            ? Strings.Get("status.downloadedReciters")
+            : Strings.Get("status.recitersSurahs", _rows.Count, surahs);
 
         UpdateLocation();
     }
@@ -68,7 +69,8 @@ public partial class LibraryPage : UserControl
         var root = _ctx.Cache.RootDirectory;
         var size = CacheMover.SizeOf(root);
         var isDefault = _ctx.Settings.CacheDirectory is null;
-        LocationText.Text = $"{root}  ·  {size / 1024.0 / 1024.0:0.0} MB{(isDefault ? "  ·  default location" : "")}";
+        var suffix = isDefault ? $"  ·  {Strings.Get("status.defaultLocation")}" : string.Empty;
+        LocationText.Text = $"{root}  ·  {Strings.Get("common.megabytes", (size / 1024.0 / 1024.0).ToString("0.0"))}{suffix}";
         ResetLocationButton.IsEnabled = !isDefault && !_moving;
         ChangeLocationButton.IsEnabled = !_moving;
     }
@@ -88,8 +90,8 @@ public partial class LibraryPage : UserControl
     private void Delete(LibraryRow row)
     {
         var answer = MessageBox.Show(
-            $"Delete all {row.SurahCount} downloaded surah{(row.SurahCount == 1 ? "" : "s")} by {row.Name} from this PC?",
-            "Delete downloads", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+            Strings.Get("dialog.deleteReciterAsk", row.SurahCount, row.Name),
+            Strings.Get("dialog.deleteDownloads"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (answer != MessageBoxResult.Yes)
             return;
 
@@ -139,7 +141,7 @@ public partial class LibraryPage : UserControl
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "Choose where downloads are kept",
+            Title = Strings.Get("dialog.chooseLocation"),
             InitialDirectory = Directory.Exists(_ctx.Cache.RootDirectory) ? _ctx.Cache.RootDirectory : null,
         };
         if (dialog.ShowDialog() != true)
@@ -161,14 +163,14 @@ public partial class LibraryPage : UserControl
 
         if (CacheMover.Validate(source, destination) is { } problem)
         {
-            MessageBox.Show(problem, "Cannot use that folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(problem, Strings.Get("dialog.cannotUseFolder"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         var size = CacheMover.SizeOf(source);
         var move = size > 0 && MessageBox.Show(
-            $"Move the {size / 1024.0 / 1024.0:0.0} MB already downloaded to:\n\n{destination}\n\nChoose No to leave it where it is and start fresh in the new folder.",
-            "Move downloads?", MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Yes) switch
+            Strings.Get("dialog.moveAsk", (size / 1024.0 / 1024.0).ToString("0.0"), destination),
+            Strings.Get("dialog.movePrompt"), MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Yes) switch
         {
             MessageBoxResult.Yes => true,
             MessageBoxResult.No => false,
@@ -188,9 +190,11 @@ public partial class LibraryPage : UserControl
                 var progress = new Progress<MoveProgress>(p =>
                 {
                     MoveProgress.Value = p.Fraction;
-                    MoveText.Text = p.CurrentFile is null ? "Finishing…" : $"Moving {p.CurrentFile}  ·  {p.FilesDone} of {p.FilesTotal}";
+                    MoveText.Text = p.CurrentFile is null
+                        ? Strings.Get("status.finishing")
+                        : Strings.Get("status.movingFile", p.CurrentFile, p.FilesDone, p.FilesTotal);
                 });
-                MoveText.Text = "Preparing…";
+                MoveText.Text = Strings.Get("status.preparing");
                 await CacheMover.MoveAsync(source, destination, progress);
             }
 
@@ -204,8 +208,8 @@ public partial class LibraryPage : UserControl
         catch (Exception ex)
         {
             Log.Error($"Could not move the library to {destination}.", ex);
-            MessageBox.Show($"The downloads could not be moved: {ex.Message}\n\nNothing was deleted; the library is still at {source}.",
-                "Move failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(Strings.Get("dialog.moveFailedBody", ex.Message, source),
+                Strings.Get("dialog.moveFailed"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -247,8 +251,8 @@ internal sealed class LibraryRow : ObservableObject
         var surahs = ctx.Cache.CachedSurahsFor(reciter.Id);
         SurahCount = surahs.Count;
         var style = string.IsNullOrEmpty(reciter.Style) ? "" : $"{reciter.Style}  ·  ";
-        Detail = $"{style}{SurahCount} of 114 surahs";
-        SizeText = $"{SizeOnDisk(ctx, reciter.Id, surahs) / 1024.0 / 1024.0:0.0} MB";
+        Detail = style + Strings.Get("library.surahsOf", SurahCount);
+        SizeText = Strings.Get("common.megabytes", (SizeOnDisk(ctx, reciter.Id, surahs) / 1024.0 / 1024.0).ToString("0.0"));
 
         OpenCommand = new RelayCommand(() => open(this));
         DeleteCommand = new RelayCommand(() => delete(this));
