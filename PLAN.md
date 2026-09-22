@@ -316,14 +316,22 @@ half-timed. `Recitation.TimedSurahs` carries the exact set, separate from the su
       Availability ships with it, so nothing is discovered by failing. Built 2026-09-22:
       **241 reciters, 298 recitations, 13 riwāyāt, 28,466 surahs — 14,355 of them timed.**
       Surah lists are range strings ("1,78-114"), so 337 KB stays readable and diffs mean something
-- [ ] The app reads the catalog: ship it in the app folder, refresh it from our host, fall back to
-      the live APIs. (Builder writes it; nothing consumes it yet)
-- [ ] Reciters and Library group by reciter, one row per recitation (as in the user's MP3 Quran screenshot)
-- [ ] MP3 Quran playback: its folder pattern + ayah timings through the same `VerseClock`; the word
-      highlight turns itself off where only verse timings exist
-- [ ] **Do not play our basmalah over one already in the recording** — `Recitation.AudioIncludesBasmalah`
-      says which. Nearly every mp3quran recording has one (5 of 115 do not); no Quran.com one does
-- [ ] Untimed recordings (172 of them) play with the panel held still on the surah name
+- [x] The app reads the catalog: shipped in the app folder, `CatalogProvider` prefers whichever copy
+      was built later. The screensaver reads it too — a local file, so `/s` still touches no network
+- [ ] Refresh the catalog from our own host. **Blocked: there is no host yet** (no git remote either).
+      `CatalogProvider.SaveDownloaded` is the seam; only the URL and the fetch are missing
+- [x] Reciters lists people; opening one lists their recordings by riwāyah and style; surahs are
+      chosen inside a recording (as in the user's MP3 Quran screenshot). Playback selection moved to
+      the recording, since a reciter is not a thing you can play
+- [x] Only the surahs a recording actually has are shown — no gap discovered by a failed download
+- [x] MP3 Quran playback: file URL and ayah timings both come from the catalog, through the same
+      `VerseClock`; the word highlight has nothing to follow where only verse timings exist
+- [x] **Do not play our basmalah over one already in the recording** — `Recitation.AudioIncludesBasmalah`
+      says which, per recording, and `RecitationProgram.Build` takes it as a predicate
+- [x] mp3quran's "ayah 0" is the basmalah, not a verse: dropped on parse, or every ayah in the surah
+      would be off by one
+- [ ] Untimed recordings (172 of them) play with the panel held still on the surah name — the catalog
+      marks them and the tiles show it, but the panel behaviour is not written yet
 - [ ] Audio stays on the sources' CDNs for now; the catalog carries the URL so moving it later is a
       data change, not a release
 
@@ -389,5 +397,7 @@ Open:
 | 2026-09-22 | Quran.com availability is settled by asking the CDN for every file (1,368 requests), not by trusting its chapter list | Recitation 8 lists 114 surahs and hosts none. Probing at build time is half a minute for us and no 404 for anyone else |
 | 2026-09-22 | mp3quran's riwāyāt 21 and 22 ("المصحف المعلم", "المصحف المجود") are published as styles of Ḥafṣ | They are ways of presenting a recitation, not riwāyāt. Left as-is they would split Minshawi and Husary across riwāyāt that do not exist |
 | 2026-09-22 | Whether a recording opens with the basmalah is probed per recording, not assumed per source | mp3quran labels it "ayah 0" in about three quarters of them and leaves it untimed in the rest, which start verse 1 six or eight seconds in. Reading the ayah number alone would have us play a second basmalah over the first |
+| 2026-09-22 | Playback selection lives on the recitation, not the reciter | A reciter is not something you can play — Husary has seven recordings across four riwāyāt. The Reciters page browses people; the tick that decides what you hear is on the recording |
+| 2026-09-22 | Quran.com's recitation 11 is filed under Abdul Muhsin al-Qasim, not the "Mohamed al-Tablawi" it is labelled | All 114 of its files are served from `abdul_muhsin_alqasim/`. The audio is what the listener hears, so the alias follows the path; the label would put one reciter's voice on another's page |
 | 2026-09-22 | Surah lists in the catalog are range strings ("1,78-114"), not JSON arrays | 28,000 numbers as arrays is a file nobody reads and a diff nobody can follow; as ranges it is 337 KB and a changed line means something |
 | 2026-09-13 | Settings app on .NET 10's built-in Fluent theme + a few in-house controls (nav pane, toggle switch, settings card), superseding WPF UI (lepo.co) | Covers the design with one fewer dependency; the pieces WPF UI added (NavigationView, ToggleSwitch) are small to write and fully under our control |
