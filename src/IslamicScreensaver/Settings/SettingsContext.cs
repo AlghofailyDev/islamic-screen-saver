@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 
 namespace IslamicScreensaver.Settings;
@@ -17,6 +18,8 @@ internal sealed class SettingsContext
 
     private readonly DispatcherTimer _saveTimer;
     private bool _dirty;
+
+    private readonly HttpClient _files = new();
 
     public SettingsContext()
     {
@@ -47,11 +50,37 @@ internal sealed class SettingsContext
     public DownloadManager Downloads { get; private set; } = null!;
     public SamplePlayer Samples { get; }
 
-    /// <summary>Points the cache and downloader at <paramref name="directory"/>, rebuilding both.</summary>
+    /// <summary>Points the cache, catalog and downloader at <paramref name="directory"/>, rebuilding all three.</summary>
     public void UseCacheAt(string directory)
     {
         Cache = new ContentCache(directory);
-        Downloads = new DownloadManager(new ContentDownloader(Api, new HttpClient(), Cache), Cache);
+        var audio = new AudioSourceRouter(new QuranComAudioSource(Api), new Mp3QuranAudioSource(_files));
+        Downloads = new DownloadManager(new ContentDownloader(Api, _files, Cache, audio), Cache);
+
+        CatalogProvider = new CatalogProvider(directory);
+        Catalog = CatalogProvider.Load();
+        Log.Info($"Catalog: {Catalog.Reciters.Count} reciter(s), {Catalog.AllRecitations.Count()} recitation(s).");
+    }
+
+    /// <summary>Every reciter and recording we know of, from the file shipped with the app.</summary>
+    public Catalog Catalog { get; private set; } = Catalog.Empty;
+
+    public CatalogProvider CatalogProvider { get; private set; } = null!;
+
+    /// <summary>The recording behind an id, or null when the catalog has never heard of it.</summary>
+    public Recitation? Recitation(RecitationId id) => Catalog.Find(id);
+
+    /// <summary>The recordings the user has chosen to play, skipping any the catalog no longer lists.</summary>
+    public IReadOnlyList<Recitation> SelectedRecitations =>
+        [.. Settings.Recitations.Select(Recitation).OfType<Recitation>()];
+
+    /// <summary>How this recording should be named in a list: "Reciter — riwāyah · style".</summary>
+    public string Describe(RecitationId id)
+    {
+        if (Recitation(id) is not { } recitation)
+            return id.ToString();
+        var reciter = Catalog.ReciterOf(id)?.Name(Strings.IsArabic) ?? string.Empty;
+        return string.IsNullOrEmpty(reciter) ? recitation.Describe(Strings.IsArabic) : $"{reciter} — {recitation.Describe(Strings.IsArabic)}";
     }
 
     /// <summary>Raised after the library moves to a different folder, so pages rebind to the new cache.</summary>
@@ -137,23 +166,6 @@ internal sealed class SettingsContext
     public IReadOnlyList<int> EffectiveSurahs => Settings.SelectedSurahs ?? Core.Playlist.PlaylistBuilder.AllSurahs;
 
     public string ReciterName(int id) => Reciters.FirstOrDefault(r => r.Id == id)?.DisplayName ?? $"Reciter {id}";
-
-    // --- Quran.com bridge -------------------------------------------------------------------
-    // The catalog UI still lists Quran.com reciters by their bare number. Until it is regrouped by
-    // reciter/recitation (M8 step 3), these translate at the boundary so ids stay qualified underneath.
-
-    public static RecitationId Rec(int quranComId) => RecitationId.QuranCom(quranComId);
-
-    /// <summary>The selected Quran.com recitations, as bare numbers.</summary>
-    public IReadOnlyList<int> SelectedQuranComIds =>
-        Settings.Recitations.Where(r => r.Source == RecitationSource.QuranCom).Select(r => r.Number).ToList();
-
-    /// <summary>Replaces the Quran.com part of the selection, leaving other sources untouched.</summary>
-    public void SetSelectedQuranComIds(IEnumerable<int> ids)
-    {
-        var others = Settings.Recitations.Where(r => r.Source != RecitationSource.QuranCom).Select(r => r.ToString());
-        Settings.RecitationIds = ids.Select(id => Rec(id).ToString()).Concat(others).ToList();
-    }
 
     public Chapter? Chapter(int number) => Chapters.FirstOrDefault(c => c.Number == number);
 }

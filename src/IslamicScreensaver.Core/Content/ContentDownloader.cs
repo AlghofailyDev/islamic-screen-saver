@@ -24,13 +24,16 @@ public sealed class ContentDownloader
     private const int MaxAttempts = 4;
 
     private readonly IQuranApi _api;
+    private readonly IAudioSource _audio;
     private readonly HttpClient _files;
     private readonly ContentCache _cache;
 
     /// <param name="files">Client for raw file downloads (the audio host, not the API).</param>
-    public ContentDownloader(IQuranApi api, HttpClient files, ContentCache cache)
+    /// <param name="audio">Where recordings come from. Defaults to Quran.com only.</param>
+    public ContentDownloader(IQuranApi api, HttpClient files, ContentCache cache, IAudioSource? audio = null)
     {
         _api = api;
+        _audio = audio ?? new QuranComAudioSource(api);
         _files = files;
         _cache = cache;
     }
@@ -70,18 +73,23 @@ public sealed class ContentDownloader
     /// <exception cref="ContentUnavailableException">
     /// The server does not host this recording (404). It is remembered as unavailable so it is not tried again.
     /// </exception>
-    public async Task EnsureSurahAudioAsync(RecitationId recitation, int surah, IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
+    public async Task EnsureSurahAudioAsync(Recitation recitation, int surah, IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
     {
-        if (_cache.HasSurahAudio(recitation, surah))
+        var id = recitation.Id;
+        if (_cache.HasSurahAudio(id, surah))
             return;
 
         try
         {
-            var audio = await WithRetry(() => _api.GetSurahAudioAsync(recitation.Number, surah, ct), $"timings {recitation}/{surah}", ct);
-            await _cache.WriteTimingsAsync(recitation, surah, audio.Timings, ct);
+            var audio = await WithRetry(() => _audio.GetSurahAudioAsync(recitation, surah, ct), $"timings {id}/{surah}", ct);
 
-            var target = _cache.AudioPath(recitation, surah);
-            var label = $"audio {recitation}/{surah}";
+            // Timings are written first and the manifest is marked last, so a surah is never counted
+            // as present with only half of it on disk. An untimed recording writes an empty list, which
+            // still satisfies the pair the disk scan looks for.
+            await _cache.WriteTimingsAsync(id, surah, audio.Timings, ct);
+
+            var target = _cache.AudioPath(id, surah);
+            var label = $"audio {id}/{surah}";
             await WithRetry(async () =>
             {
                 await DownloadFileAsync(audio.AudioUrl, target, audio.FileSize, label, progress, ct);
@@ -90,13 +98,13 @@ public sealed class ContentDownloader
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
-            // Quran.com's catalog lists recordings its CDN does not actually serve. Remember and move on.
-            _cache.MarkUnavailable(recitation, surah);
-            Log.Info($"Surah {surah} is not hosted for {recitation}; marked unavailable.");
+            // A source can list a recording its CDN does not actually serve. Remember and move on.
+            _cache.MarkUnavailable(id, surah);
+            Log.Info($"Surah {surah} is not hosted for {id}; marked unavailable.");
             throw new ContentUnavailableException($"Surah {surah} is not available from this reciter.");
         }
 
-        _cache.MarkSurahAudioComplete(recitation, surah);
+        _cache.MarkSurahAudioComplete(id, surah);
     }
 
     /// <summary>

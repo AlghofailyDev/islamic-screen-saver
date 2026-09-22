@@ -23,7 +23,7 @@ public sealed class ContentDownloaderTests : IDisposable
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
         var reports = new List<DownloadProgress>();
 
-        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112, new SyncProgress(reports));
+        await downloader.EnsureSurahAudioAsync(Rec(7), 112, new SyncProgress(reports));
 
         Assert.True(cache.HasSurahAudio(RecitationId.QuranCom(7), 112));
         Assert.Equal(_mp3, await File.ReadAllBytesAsync(cache.AudioPath(RecitationId.QuranCom(7), 112)));
@@ -45,7 +45,7 @@ public sealed class ContentDownloaderTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(part)!);
         await File.WriteAllBytesAsync(part, _mp3[..4000]);
 
-        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112);
+        await downloader.EnsureSurahAudioAsync(Rec(7), 112);
 
         Assert.Equal(4000, server.LastRangeFrom);
         Assert.Equal(_mp3, await File.ReadAllBytesAsync(cache.AudioPath(RecitationId.QuranCom(7), 112)));
@@ -59,7 +59,7 @@ public sealed class ContentDownloaderTests : IDisposable
         var server = new FakeFileServer(_mp3) { FailFirstRequests = 1 };
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
-        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112);
+        await downloader.EnsureSurahAudioAsync(Rec(7), 112);
 
         Assert.Equal(2, server.Requests);
         Assert.True(cache.HasSurahAudio(RecitationId.QuranCom(7), 112));
@@ -72,8 +72,8 @@ public sealed class ContentDownloaderTests : IDisposable
         var server = new FakeFileServer(_mp3);
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
-        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112);
-        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112);
+        await downloader.EnsureSurahAudioAsync(Rec(7), 112);
+        await downloader.EnsureSurahAudioAsync(Rec(7), 112);
 
         Assert.Equal(1, server.Requests);
     }
@@ -85,7 +85,7 @@ public sealed class ContentDownloaderTests : IDisposable
         var server = new FakeFileServer(_mp3) { NotFound = true };
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
-        await Assert.ThrowsAsync<ContentUnavailableException>(() => downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(8), 1));
+        await Assert.ThrowsAsync<ContentUnavailableException>(() => downloader.EnsureSurahAudioAsync(Rec(8), 1));
 
         Assert.Equal(1, server.Requests);                  // a 404 is final, so no retries
         Assert.True(cache.IsUnavailable(RecitationId.QuranCom(8), 1));
@@ -113,11 +113,16 @@ public sealed class ContentDownloaderTests : IDisposable
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
         // Every attempt is truncated, so the downloader gives up after its retries.
-        await Assert.ThrowsAsync<IOException>(() => downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112));
+        await Assert.ThrowsAsync<IOException>(() => downloader.EnsureSurahAudioAsync(Rec(7), 112));
 
         Assert.False(cache.HasSurahAudio(RecitationId.QuranCom(7), 112));
         Assert.False(File.Exists(cache.AudioPath(RecitationId.QuranCom(7), 112)));
     }
+
+    /// <summary>A Quran.com recording as the catalog would describe it — all 114 surahs, word timings.</summary>
+    private static Recitation Rec(int number) =>
+        new(RecitationId.QuranCom(number), $"mq-{number}", "حفص عن عاصم", null, null,
+            TimingLevel.Word, [.. Enumerable.Range(1, 114)]);
 
     private sealed class SyncProgress(List<DownloadProgress> sink) : IProgress<DownloadProgress>
     {

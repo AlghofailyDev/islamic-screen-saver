@@ -86,8 +86,11 @@ internal sealed class ScreensaverSession
         var startIndex = PlaylistBuilder.StartIndex(playlist, _settings, lastState);
         Log.Info($"Playlist: {playlist.Count} surah(s), starting at #{startIndex} ({playlist[startIndex].Recitation}/{playlist[startIndex].Surah}).");
 
+        // A local file, so reading it here does not break the rule that /s never touches the network.
+        var catalog = new CatalogProvider(cache.RootDirectory).Load();
+
         var windows = WindowsWithPanels();
-        _engine = new PlaybackEngine(cache, _settings, playlist, startIndex, lastState);
+        _engine = new PlaybackEngine(cache, _settings, playlist, startIndex, lastState, catalog);
         _engine.VerseChanged += verse =>
         {
             foreach (var window in windows)

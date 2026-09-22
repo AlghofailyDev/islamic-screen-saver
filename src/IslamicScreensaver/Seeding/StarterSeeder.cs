@@ -29,11 +29,16 @@ internal static class StarterSeeder
 
         try
         {
-            var cache = ContentCache.For(Core.Settings.SettingsStore.Load());
-            var downloader = new ContentDownloader(new QuranApiClient(new HttpClient()), new HttpClient(), cache);
+            var settings = Core.Settings.SettingsStore.Load();
+            var cache = ContentCache.For(settings);
+            var api = new QuranApiClient(new HttpClient());
+            var files = new HttpClient();
+            var audio = new AudioSourceRouter(new QuranComAudioSource(api), new Mp3QuranAudioSource(files));
+            var downloader = new ContentDownloader(api, files, cache, audio);
+            var catalog = new CatalogProvider(cache.RootDirectory).Load();
 
             Say($"Fetching starter content into {cache.RootDirectory}");
-            Say($"  reciter {StarterContent.Recitation}, {StarterContent.Surahs.Count} surahs, translation {StarterContent.TranslationId}");
+            Say($"  reciter {StarterContent.RecitationId}, {StarterContent.Surahs.Count} surahs, translation {StarterContent.TranslationId}");
 
             string? lastItem = null;
             var progress = new Progress<DownloadProgress>(p =>
@@ -46,14 +51,14 @@ internal static class StarterSeeder
 
             try
             {
-                await StarterContent.DownloadAsync(downloader, progress);
+                await StarterContent.DownloadAsync(downloader, catalog, progress);
             }
             catch (ContentUnavailableException ex)
             {
                 Say($"  skipped: {ex.Message}");
             }
 
-            Say($"Done. {cache.CachedSurahsFor(StarterContent.Recitation).Count} surahs ready for reciter {StarterContent.Recitation}.");
+            Say($"Done. {cache.CachedSurahsFor(StarterContent.RecitationId).Count} surahs ready for reciter {StarterContent.RecitationId}.");
             return 0;
         }
         catch (Exception ex)

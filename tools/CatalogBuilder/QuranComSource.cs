@@ -79,7 +79,9 @@ internal sealed class QuranComSource(Fetcher fetcher, bool probe)
                 listed[chapter] = url;
         }
 
-        var template = listed.Count > 0 ? TemplateFrom(listed.First()) : null;
+        // Take the lowest surah as the sample: below 100 the padded and plain endings differ, so the
+        // shape is unambiguous. A sample of, say, 100 would look padded either way.
+        var template = listed.Count > 0 ? TemplateFrom(listed.OrderBy(p => p.Key).First()) : null;
         if (!probe)
             return ([.. listed.Keys.Order()], template);
 
@@ -98,13 +100,24 @@ internal sealed class QuranComSource(Fetcher fetcher, bool probe)
         return (present, template);
     }
 
-    /// <summary>".../murattal/7.mp3" for surah 7 becomes ".../murattal/{surah}.mp3".</summary>
+    /// <summary>
+    /// ".../murattal/7.mp3" becomes ".../murattal/{surah}.mp3". Quran.com uses both a plain number
+    /// and a zero-padded one depending on the recording, so both endings are tried.
+    /// </summary>
     private static string? TemplateFrom(KeyValuePair<int, string> sample)
     {
-        var tail = $"/{sample.Key}.mp3";
-        return sample.Value.EndsWith(tail, StringComparison.Ordinal)
-            ? sample.Value[..^tail.Length] + "/{surah}.mp3"
-            : null;
+        foreach (var (tail, placeholder) in new[]
+                 {
+                     ($"/{sample.Key:000}.mp3", "/{surah:000}.mp3"),
+                     ($"/{sample.Key}.mp3", "/{surah}.mp3"),
+                 })
+        {
+            if (sample.Value.EndsWith(tail, StringComparison.Ordinal))
+                return sample.Value[..^tail.Length] + placeholder;
+        }
+
+        Console.Error.WriteLine($"  ! unrecognised audio URL shape: {sample.Value}");
+        return null;
     }
 
     /// <summary>Quran.com names the style in English only; the catalog is read in Arabic too.</summary>

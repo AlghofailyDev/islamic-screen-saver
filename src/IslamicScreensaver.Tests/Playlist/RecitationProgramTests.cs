@@ -24,6 +24,41 @@ public class RecitationProgramTests
     }
 
     [Fact]
+    public void ARecordingThatOpensWithTheBasmalahDoesNotGetASecondOne()
+    {
+        // Nearly every mp3quran.net recording recites the basmalah itself. Adding ours in front of
+        // it would have the listener hear it twice.
+        var playlist = new List<PlaylistItem> { new(M(1), 2), new(M(1), 112) };
+
+        var steps = RecitationProgram.Build(playlist, startIndex: 0, startsMidSurah: false, audioHasBasmalah: _ => true);
+
+        Assert.Equal(
+        [
+            (RecitationPart.Istiadhah, 2),
+            (RecitationPart.Surah, 2),
+            (RecitationPart.Surah, 112),
+        ], Parts(steps));
+    }
+
+    [Fact]
+    public void TheAnswerIsPerRecording_SoAMixedPlaylistGetsBoth()
+    {
+        // Rotation can put a Quran.com recording and an mp3quran one in the same playlist.
+        var playlist = new List<PlaylistItem> { new(Q(7), 2), new(M(1), 2) };
+
+        var steps = RecitationProgram.Build(
+            playlist, startIndex: 0, startsMidSurah: false,
+            audioHasBasmalah: item => item.Recitation.Source == RecitationSource.Mp3Quran);
+
+        Assert.Equal(
+        [
+            (RecitationPart.Istiadhah, 2),
+            (RecitationPart.Basmalah, 2), (RecitationPart.Surah, 2),   // Quran.com: we supply it
+            (RecitationPart.Surah, 2),                                  // mp3quran: already there
+        ], Parts(steps));
+    }
+
+    [Fact]
     public void OpensWithIstiadhah_ThenBasmalahBeforeEachSurahThatNeedsOne()
     {
         var steps = RecitationProgram.Build(Playlist, startIndex: 0, startsMidSurah: false);

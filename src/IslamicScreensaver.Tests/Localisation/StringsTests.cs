@@ -15,6 +15,15 @@ public class StringsTests : IDisposable
     }
 
     [Fact]
+    public void ProperNounsAreStillInTheTable()
+    {
+        // Exempt from the translation check, but not exempt from having a home: a source name on a
+        // recitation row must come from a key like every other string on screen.
+        Strings.Use(AppLanguage.Arabic);
+        Assert.Equal("MP3 Quran", Strings.Get("recitation.source.mp3quran"));
+    }
+
+    [Fact]
     public void SwitchingLanguage_ChangesTheText()
     {
         Strings.Use(AppLanguage.English);

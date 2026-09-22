@@ -24,9 +24,17 @@ internal static class ReciterAliases
         [8] = 112,  // Mohamed Siddiq al-Minshawi (Mujawwad) → محمد صديق المنشاوي
         [9] = 112,  // Mohamed Siddiq al-Minshawi (Murattal)
         [10] = 31,  // Sa`ud ash-Shuraym                 → سعود الشريم
-        [11] = 106, // Mohamed al-Tablawi                → محمد الطبلاوي
+        [11] = 67,  // See below: labelled Tablawi, but the audio is al-Qasim → عبدالمحسن القاسم
         [12] = 118, // Mahmoud Khalil Al-Husary (Muallim)
     };
+
+    /// <summary>
+    /// Quran.com's recitation 11 is named "Mohamed al-Tablawi", but all 114 of its files are served
+    /// from <c>abdul_muhsin_alqasim/</c> — it is Abdul Muhsin al-Qasim's recording under the wrong
+    /// name (checked 2026-09-22). The audio is what the listener hears, so the alias follows the
+    /// path, not the label. Filing it under Tablawi would put one reciter's voice on another's page.
+    /// </summary>
+    public const int MislabelledQuranComRecitation = 11;
 
     /// <summary>
     /// The canonical reciter id. Derived from the mp3quran id rather than the name, because a name is

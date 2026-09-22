@@ -9,6 +9,11 @@ using IslamicScreensaver.Core.Localisation;
 
 namespace IslamicScreensaver.Settings.Pages;
 
+/// <summary>
+/// Every reciter we know of. One row per person, however many recordings they have — opening one
+/// shows their recitations, because a reciter is not a recording: Husary alone has seven, across four
+/// riwāyāt and both sources.
+/// </summary>
 public partial class RecitersPage : UserControl
 {
     private readonly SettingsContext _ctx;
@@ -20,21 +25,9 @@ public partial class RecitersPage : UserControl
         InitializeComponent();
 
         _ctx.CatalogChanged += Rebuild;
-        _ctx.Downloads.Changed += (key, progress) =>
+        _ctx.Downloads.Changed += (_, _) =>
         {
-            foreach (var row in _rows.Where(r => r.JobKey == key))
-                row.OnJob(progress);
-            UpdateStorage();
-        };
-        _ctx.Downloads.Failed += (key, message) =>
-        {
-            if (key.StartsWith("reciter:"))
-                MessageBox.Show(message, Strings.Get("dialog.downloadFailed"), MessageBoxButton.OK, MessageBoxImage.Warning);
-        };
-        _ctx.Samples.PlayingChanged += _ =>
-        {
-            foreach (var row in _rows)
-                row.RefreshPlaying();
+            RefreshStatuses();
         };
 
         Rotate.IsChecked = _ctx.Settings.RotateReciters;
@@ -52,12 +45,12 @@ public partial class RecitersPage : UserControl
     private void Rebuild()
     {
         _rows.Clear();
-        var selected = _ctx.SelectedQuranComIds;
-        foreach (var reciter in _ctx.Reciters)
-            _rows.Add(new ReciterRow(_ctx, reciter, selected.Contains(reciter.Id), OnSelectionChanged, Open));
+        var selected = _ctx.Settings.Recitations.ToHashSet();
+        foreach (var reciter in _ctx.Catalog.Reciters)
+            _rows.Add(new ReciterRow(_ctx, reciter, selected));
 
-        // Selected first, then the rest alphabetically — the ones in use are what you look for.
-        List.ItemsSource = _rows.OrderByDescending(r => r.IsSelected).ThenBy(r => r.Name).ToList();
+        // The reciters you actually listen to first, then everyone else by name.
+        List.ItemsSource = _rows.OrderByDescending(r => r.IsPlaying).ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         EmptyText.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         ApplySearch();
         UpdateStorage();
@@ -71,7 +64,7 @@ public partial class RecitersPage : UserControl
 
     private void Row_Click(object sender, MouseButtonEventArgs e)
     {
-        // Controls inside the row (checkbox, buttons) handle their own clicks; anywhere else opens the reciter.
+        // Controls inside the row handle their own clicks; anywhere else opens the reciter.
         if (e.OriginalSource is DependencyObject source && HasInteractiveAncestor(source, (FrameworkElement)sender))
             return;
         if (sender is FrameworkElement { DataContext: ReciterRow row })
@@ -87,12 +80,6 @@ public partial class RecitersPage : UserControl
             node = VisualTreeHelper.GetParent(node);
         }
         return false;
-    }
-
-    private void OnSelectionChanged()
-    {
-        _ctx.SetSelectedQuranComIds(_rows.Where(r => r.IsSelected).Select(r => r.Id));
-        _ctx.Changed();
     }
 
     private void ApplySearch()
@@ -142,10 +129,9 @@ public partial class RecitersPage : UserControl
         if (!ok)
             MessageBox.Show(Strings.Get("dialog.cannotReach"), Strings.Get("dialog.refreshFailed"), MessageBoxButton.OK, MessageBoxImage.Warning);
     }
-
 }
 
-/// <summary>One reciter in the list: playback selection, download state, listen and open buttons.</summary>
+/// <summary>One reciter in the list: how many recordings they have, and how much of them is on disk.</summary>
 internal sealed class ReciterRow : ObservableObject
 {
     private static readonly (string Bg, string Fg)[] AvatarPalette =
@@ -155,111 +141,67 @@ internal sealed class ReciterRow : ObservableObject
     ];
 
     private readonly SettingsContext _ctx;
-    private readonly Action _selectionChanged;
-    private bool _isSelected;
     private bool _isVisible = true;
     private string _statusText = string.Empty;
-    private bool _isComplete;
-    private bool _isDownloading;
-    private double _progress;
+    private bool _isPlaying;
+    private bool _hasDownloads;
 
-    public ReciterRow(SettingsContext ctx, Reciter reciter, bool isSelected, Action selectionChanged, Action<ReciterRow> open)
+    public ReciterRow(SettingsContext ctx, ReciterEntry reciter, IReadOnlySet<RecitationId> selected)
     {
         _ctx = ctx;
-        _selectionChanged = selectionChanged;
         Reciter = reciter;
-        Id = reciter.Id;
-        Name = reciter.Name;
-        Subtitle = reciter.Style ?? Strings.Get("status.recitation");
-        _isSelected = isSelected;
-        JobKey = $"reciter:{reciter.Id}";
+        Name = reciter.Name(Strings.IsArabic);
+        Subtitle = reciter.Recitations.Count == 1
+            ? reciter.Recitations[0].Describe(Strings.IsArabic)
+            : Strings.Get("recitation.many", reciter.Recitations.Count);
+        _isPlaying = reciter.Recitations.Any(r => selected.Contains(r.Id));
 
-        var palette = AvatarPalette[Math.Abs(reciter.Id) % AvatarPalette.Length];
+        var palette = AvatarPalette[Math.Abs(reciter.Id.GetHashCode()) % AvatarPalette.Length];
         AvatarBrush = (Brush)new BrushConverter().ConvertFromString(palette.Bg)!;
         AvatarForeground = (Brush)new BrushConverter().ConvertFromString(palette.Fg)!;
-        Initials = string.Concat(reciter.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
+        Initials = Initial(Name);
 
-        OpenCommand = new RelayCommand(() => open(this));
-        PlayCommand = new RelayCommand(Play);
+        OpenCommand = new RelayCommand(() => ctx.NavigateTo?.Invoke(new ReciterDetailPage(ctx, reciter, () => { })));
 
-        OnJob(ctx.Downloads.ProgressOf(JobKey));
         RefreshStatus();
     }
 
-    public Reciter Reciter { get; }
-    public int Id { get; }
+    /// <summary>Arabic names do not abbreviate to initials the way Latin ones do, so take one letter there.</summary>
+    private static string Initial(string name)
+    {
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+            return "?";
+        return Strings.IsRightToLeftText(name)
+            ? words[0][..1]
+            : string.Concat(words.Take(2).Select(w => char.ToUpperInvariant(w[0])));
+    }
+
+    public ReciterEntry Reciter { get; }
     public string Name { get; }
     public string Subtitle { get; }
     public string Initials { get; }
     public Brush AvatarBrush { get; }
     public Brush AvatarForeground { get; }
-    public string JobKey { get; }
     public RelayCommand OpenCommand { get; }
-    public RelayCommand PlayCommand { get; }
-
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set
-        {
-            if (Set(ref _isSelected, value))
-                _selectionChanged();
-        }
-    }
 
     public bool IsVisible { get => _isVisible; set => Set(ref _isVisible, value); }
     public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
-    public bool IsComplete { get => _isComplete; private set => Set(ref _isComplete, value); }
-    public bool IsDownloading { get => _isDownloading; private set => Set(ref _isDownloading, value); }
-    public double Progress { get => _progress; private set => Set(ref _progress, value); }
-    public string PlayGlyph => _ctx.Samples.PlayingKey == JobKey ? "\uE71A" : "\uE768"; // Stop / Play (Segoe Fluent Icons)
+    public bool IsPlaying { get => _isPlaying; private set => Set(ref _isPlaying, value); }
+    public bool HasDownloads { get => _hasDownloads; private set => Set(ref _hasDownloads, value); }
 
-    public bool Matches(string query) =>
-        query.Length == 0
-        || Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || Subtitle.Contains(query, StringComparison.OrdinalIgnoreCase);
+    public bool Matches(string query) => Reciter.Matches(query) || Subtitle.Contains(query, StringComparison.OrdinalIgnoreCase);
 
     public void RefreshStatus()
     {
-        if (IsDownloading)
-            return;
+        var downloaded = Reciter.Recitations.Sum(r => _ctx.Cache.CachedSurahsFor(r.Id).Count);
+        var available = Reciter.Recitations.Sum(r => r.AvailableSurahs.Count);
 
-        var have = _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(Id)).Count;
-        IsComplete = have == 114;
-        StatusText = have == 0 ? Strings.Get("reciters.nothingDownloaded")
-            : have == 114 ? Strings.Get("reciters.allSurahs")
-            : Strings.Get("reciters.someDownloaded", have);
-    }
+        HasDownloads = downloaded > 0;
+        StatusText = downloaded == 0
+            ? Strings.Get("reciters.nothingDownloaded")
+            : Strings.Get("recitation.downloadedOf", downloaded, available);
 
-    public void OnJob(JobProgress? progress)
-    {
-        if (progress is null)
-        {
-            IsDownloading = false;
-            Progress = 0;
-            RefreshStatus();
-            return;
-        }
-
-        IsDownloading = true;
-        Progress = progress.Fraction;
-        StatusText = progress.CurrentItem is null
-            ? Strings.Get("status.finishing")
-            : Strings.Get("status.downloadingOf", progress.CurrentItem, progress.Done, progress.Total);
-    }
-
-    public void RefreshPlaying() => Raise(nameof(PlayGlyph));
-
-    private void Play()
-    {
-        var cached = _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(Id));
-        if (cached.Count == 0)
-        {
-            MessageBox.Show(Strings.Get("dialog.downloadFirst"), Strings.Get("dialog.nothingDownloadedYet"), MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-        // Prefer a short surah so the sample is representative but brief.
-        var surah = cached.OrderByDescending(s => s).First();
-        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(SettingsContext.Rec(Id), surah), (float)_ctx.Settings.Volume);
+        IsPlaying = Reciter.Recitations.Any(r => _ctx.Settings.Recitations.Contains(r.Id));
     }
 }

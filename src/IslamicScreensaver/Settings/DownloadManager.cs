@@ -54,14 +54,18 @@ internal sealed class DownloadManager
     /// Fetch Al-Fatihah too when it is missing: its first verse is the basmalah, which is played
     /// before other surahs in this reciter's own voice. It is under a megabyte.
     /// </param>
-    public void EnqueueReciter(RecitationId recitation, IReadOnlyList<int> surahs, bool alsoAlFatihah = false)
+    public void EnqueueReciter(Recitation recitation, IReadOnlyList<int> surahs, bool alsoAlFatihah = false)
     {
+        var id = recitation.Id;
         var wanted = surahs.ToList();
-        if (alsoAlFatihah && !wanted.Contains(RecitationProgram.AlFatihah))
+
+        // Only worth fetching where the basmalah has to come from this reciter's own Al-Fatihah.
+        // A recording that opens every surah with one already has it.
+        if (alsoAlFatihah && recitation.AudioIncludesBasmalah != true && !wanted.Contains(RecitationProgram.AlFatihah))
             wanted.Insert(0, RecitationProgram.AlFatihah);
 
-        var pending = wanted.Where(s => !_cache.HasSurahAudio(recitation, s) && !_cache.IsUnavailable(recitation, s)).ToList();
-        Enqueue($"reciter:{recitation}", async (progress, ct) =>
+        var pending = wanted.Where(s => !_cache.HasSurahAudio(id, s) && !_cache.IsUnavailable(id, s)).ToList();
+        Enqueue($"reciter:{id}", async (progress, ct) =>
         {
             var unavailable = 0;
             for (var i = 0; i < pending.Count; i++)
@@ -84,7 +88,7 @@ internal sealed class DownloadManager
             }
             progress.Report(new JobProgress(pending.Count, pending.Count, null, null));
             if (unavailable > 0)
-                Report($"reciter:{recitation}", $"{unavailable} of {pending.Count} surah{(unavailable == 1 ? " is" : "s are")} not available from this reciter — Quran.com lists them but does not host the audio. Everything else was downloaded.");
+                Report($"reciter:{id}", $"{unavailable} of {pending.Count} surah{(unavailable == 1 ? " is" : "s are")} not available from this reciter — the source lists them but does not host the audio. Everything else was downloaded.");
         });
     }
 

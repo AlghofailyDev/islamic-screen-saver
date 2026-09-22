@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Playlist;
 using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Core.Timing;
@@ -29,6 +30,7 @@ internal sealed class PlaybackEngine : IDisposable
     private readonly IReadOnlyList<PlaylistItem> _playlist;
     private readonly Dictionary<int, Chapter> _chapters;
     private readonly Dictionary<int, string> _quranComNames;
+    private readonly Catalog _catalog;
     private readonly DispatcherTimer _tick;
     private readonly int _startIndex;
     private readonly TimeSpan _startOffset;
@@ -47,11 +49,12 @@ internal sealed class PlaybackEngine : IDisposable
     private VerseClock.Position _shown = new(int.MinValue, 0);
     private bool _disposed;
 
-    public PlaybackEngine(ContentCache cache, AppSettings settings, IReadOnlyList<PlaylistItem> playlist, int startIndex, PlaybackState? resumeFrom)
+    public PlaybackEngine(ContentCache cache, AppSettings settings, IReadOnlyList<PlaylistItem> playlist, int startIndex, PlaybackState? resumeFrom, Catalog? catalog = null)
     {
         _cache = cache;
         _settings = settings;
         _playlist = playlist;
+        _catalog = catalog ?? Catalog.Empty;
         _startIndex = Math.Clamp(startIndex, 0, Math.Max(0, playlist.Count - 1));
 
         if (resumeFrom is not null && playlist.Count > 0 && playlist[_startIndex].Surah == resumeFrom.Surah && resumeFrom.VerseIndex >= 0)
@@ -93,7 +96,10 @@ internal sealed class PlaybackEngine : IDisposable
 
         MediaFoundationApi.Startup();
 
-        var steps = RecitationProgram.Build(_playlist, _startIndex, startsMidSurah: _startOffset > TimeSpan.Zero);
+        var steps = RecitationProgram.Build(
+            _playlist, _startIndex,
+            startsMidSurah: _startOffset > TimeSpan.Zero,
+            audioHasBasmalah: item => _catalog.Find(item.Recitation)?.AudioIncludesBasmalah == true);
         _segments = SegmentBuilder.Build(steps, _cache);
         if (_segments.Count == 0)
         {
@@ -268,13 +274,18 @@ internal sealed class PlaybackEngine : IDisposable
     }
 
     /// <summary>
-    /// The name shown on screen. Until the published catalog lands, only Quran.com names are cached,
-    /// so anything else falls back to its id rather than showing nothing.
+    /// The name shown on screen. The catalog knows every reciter; the cached Quran.com list is the
+    /// fallback for a library downloaded before the catalog shipped, and the id itself the last resort.
     /// </summary>
-    private string ReciterNameFor(RecitationId recitation) =>
-        recitation.Source == RecitationSource.QuranCom && _quranComNames.TryGetValue(recitation.Number, out var name)
+    private string ReciterNameFor(RecitationId recitation)
+    {
+        if (_catalog.ReciterOf(recitation) is { } reciter)
+            return reciter.Name(Strings.IsArabic);
+
+        return recitation.Source == RecitationSource.QuranCom && _quranComNames.TryGetValue(recitation.Number, out var name)
             ? name
             : recitation.ToString();
+    }
 
     private Chapter ChapterFor(int surah) =>
         _chapters.GetValueOrDefault(surah) ?? new Chapter(surah, string.Empty, $"Surah {surah}", string.Empty, _clock.VerseCount, surah is not (1 or 9));

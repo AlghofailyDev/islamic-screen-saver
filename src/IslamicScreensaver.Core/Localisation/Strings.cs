@@ -61,8 +61,10 @@ public static class Strings
 
         // Reciters
         ["reciters.title"] = ("Reciters", "القرّاء"),
-        ["reciters.subtitle"] = ("Tick who you hear — several take turns. Open a reciter to choose which surahs to download.",
-                                 "اختر من تستمع إليه — يمكن لعدة قرّاء التناوب. افتح قارئًا لاختيار السور التي تريد تنزيلها."),
+        ["reciters.subtitle"] = ("Open a reciter to see their recitations, choose one to hear and download the surahs you want.",
+                                 "افتح قارئًا لعرض تلاواته، واختر ما تستمع إليه ونزّل السور التي تريدها."),
+        ["reciters.empty"] = ("The reciter catalog is missing. Reinstall the app, or click Refresh list.",
+                              "قائمة القرّاء غير موجودة. أعد تثبيت التطبيق أو اضغط تحديث القائمة."),
         ["reciters.search"] = ("Search reciters", "ابحث عن قارئ"),
         ["reciters.refresh"] = ("Refresh list", "تحديث القائمة"),
         ["reciters.count"] = ("{0} reciters", "{0} قارئًا"),
@@ -76,6 +78,24 @@ public static class Strings
         ["reciters.notDownloaded"] = ("Not downloaded", "غير منزَّل"),
         ["reciters.downloading"] = ("Downloading…", "جارٍ التنزيل…"),
         ["reciters.notAvailable"] = ("Not available", "غير متوفر"),
+
+        // Recitations — one reciter can have several, by riwāyah and style
+        ["recitation.one"] = ("1 recitation", "تلاوة واحدة"),
+        ["recitation.many"] = ("{0} recitations", "{0} تلاوات"),
+        ["recitation.choose"] = ("Choose a recitation", "اختر تلاوة"),
+        ["recitation.chooseSurahs"] = ("Choose surahs", "اختر السور"),
+        ["recitation.timing.word"] = ("Follows each word", "يتابع كل كلمة"),
+        ["recitation.timing.verse"] = ("Follows each verse", "يتابع كل آية"),
+        ["recitation.timing.none"] = ("No verse sync", "بدون تزامن الآيات"),
+        ["recitation.timing.partial"] = ("{0} of {1} surahs sync", "{0} من {1} سورة متزامنة"),
+        ["recitation.surahsAvailable"] = ("{0} surahs available", "{0} سورة متاحة"),
+        ["recitation.downloadedOf"] = ("{0} of {1} downloaded", "{0} من {1} تم تنزيلها"),
+        ["recitation.playing"] = ("In playback", "ضمن التشغيل"),
+        ["recitation.notPlaying"] = ("Not in playback", "ليست ضمن التشغيل"),
+        ["recitation.source.qurancom"] = ("Quran.com", "Quran.com"),
+        ["recitation.source.mp3quran"] = ("MP3 Quran", "MP3 Quran"),
+        ["recitation.noneSelected"] = ("No recitation chosen yet", "لم تُختَر أي تلاوة بعد"),
+        ["recitation.basmalahIncluded"] = ("Opens with the basmalah", "تبدأ بالبسملة"),
 
         // Surahs
         ["surahs.title"] = ("Surahs", "السور"),
@@ -290,8 +310,20 @@ public static class Strings
     }
 
     /// <summary>Keys whose Arabic is still missing — used by a test so translations cannot silently rot.</summary>
+    /// <summary>
+    /// Proper nouns that read the same in both languages. They are listed rather than left out of the
+    /// table, so every user-visible string still has one home — but an identical pair is normally a
+    /// missing translation, and that is what <see cref="UntranslatedKeys"/> is for.
+    /// </summary>
+    private static readonly HashSet<string> SameInBothLanguages =
+    [
+        "recitation.source.qurancom",
+        "recitation.source.mp3quran",
+    ];
+
     public static IReadOnlyList<string> UntranslatedKeys() =>
-        Table.Where(kv => string.IsNullOrWhiteSpace(kv.Value.Ar) || kv.Value.Ar == kv.Value.En)
+        Table.Where(kv => !SameInBothLanguages.Contains(kv.Key))
+             .Where(kv => string.IsNullOrWhiteSpace(kv.Value.Ar) || kv.Value.Ar == kv.Value.En)
              .Select(kv => kv.Key)
              .ToList();
 

@@ -6,223 +6,73 @@ using IslamicScreensaver.Core.Localisation;
 
 namespace IslamicScreensaver.Settings.Pages;
 
-/// <summary>One reciter: pick surahs, download them, delete them, listen.</summary>
+/// <summary>
+/// One reciter's recordings — a row per riwāyah and style, as the MP3 Quran app lists them. This is
+/// where playback selection happens, because "Husary" is not a thing you can play: one of his seven
+/// recordings is.
+/// </summary>
 public partial class ReciterDetailPage : UserControl
 {
     private readonly SettingsContext _ctx;
-    private readonly Reciter _reciter;
+    private readonly ReciterEntry _reciter;
     private readonly Action _onChanged;
-    private readonly List<ReciterSurahTile> _tiles = [];
-    private bool _bulkUpdate;
+    private readonly List<RecitationRow> _rows = [];
 
-    internal ReciterDetailPage(SettingsContext ctx, Reciter reciter, Action onChanged)
+    internal ReciterDetailPage(SettingsContext ctx, ReciterEntry reciter, Action onChanged)
     {
         _ctx = ctx;
         _reciter = reciter;
         _onChanged = onChanged;
         InitializeComponent();
 
-        Title.Text = reciter.Name;
-        Subtitle.Text = reciter.Style ?? Strings.Get("status.recitation");
-        Initials.Text = string.Concat(reciter.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
+        var name = reciter.Name(Strings.IsArabic);
+        Title.Text = name;
+        Subtitle.Text = reciter.Recitations.Count == 1
+            ? Strings.Get("recitation.one")
+            : Strings.Get("recitation.many", reciter.Recitations.Count);
+        Initials.Text = name.Length > 0 ? name[..1] : "?";
 
-        foreach (var chapter in _ctx.Chapters)
-            _tiles.Add(new ReciterSurahTile(chapter, OnTileChanged));
-        Tiles.ItemsSource = _tiles;
+        foreach (var recitation in reciter.Recitations)
+            _rows.Add(new RecitationRow(ctx, reciter, recitation, OnSelectionChanged, RefreshRows));
+        List.ItemsSource = _rows;
 
         _ctx.Downloads.Changed += OnJobChanged;
-        _ctx.Downloads.Failed += OnJobFailed;
-        _ctx.Downloads.Notice += OnJobNotice;
-        _ctx.Samples.PlayingChanged += _ => UpdateListen();
-        Unloaded += (_, _) =>
-        {
-            _ctx.Downloads.Changed -= OnJobChanged;
-            _ctx.Downloads.Failed -= OnJobFailed;
-            _ctx.Downloads.Notice -= OnJobNotice;
-        };
+        Unloaded += (_, _) => _ctx.Downloads.Changed -= OnJobChanged;
 
-        RefreshStates();
-        OnJobChanged(JobKey, _ctx.Downloads.ProgressOf(JobKey));
-        UpdateListen();
-    }
-
-    private string JobKey => $"reciter:{_reciter.Id}";
-
-    private bool IsDownloading => _ctx.Downloads.IsBusy(JobKey);
-
-    private void RefreshStates()
-    {
-        var cached = new HashSet<int>(_ctx.Cache.CachedSurahsFor(SettingsContext.Rec(_reciter.Id)));
-        var unavailable = new HashSet<int>(_ctx.Cache.UnavailableSurahsFor(SettingsContext.Rec(_reciter.Id)));
-        foreach (var tile in _tiles)
-        {
-            tile.SetState(cached.Contains(tile.Number) ? SurahState.Downloaded
-                : unavailable.Contains(tile.Number) ? SurahState.Unavailable
-                : SurahState.Missing);
-            if (tile.State == SurahState.Unavailable)
-                tile.IsSelected = false;
-        }
-        UpdateSummary();
-    }
-
-    private void UpdateSummary()
-    {
-        var downloaded = _tiles.Count(t => t.State == SurahState.Downloaded);
-        var unavailable = _tiles.Count(t => t.State == SurahState.Unavailable);
-        var obtainable = _tiles.Count - unavailable;
-        var selected = _tiles.Where(t => t.IsSelected).ToList();
-        var toDownload = selected.Count(t => t.State == SurahState.Missing);
-        var toDelete = selected.Count(t => t.State == SurahState.Downloaded);
-
-        CountText.Text = selected.Count == 0 ? string.Empty : $"{selected.Count} selected";
-
-        if (IsDownloading)
-            return;
-
-        StatusText.Text = downloaded == obtainable && obtainable > 0
-            ? (unavailable == 0 ? Strings.Get("status.allDownloaded") : Strings.Get("status.allAvailableDownloaded", obtainable))
-            : downloaded == 0 ? Strings.Get("status.nothingDownloadedYet")
-            : Strings.Get("status.downloadedOf", downloaded, obtainable);
-        StatusDetail.Text = selected.Count == 0
-            ? unavailable > 0
-                ? $"{unavailable} surah{(unavailable == 1 ? " is" : "s are")} not hosted by Quran.com for this reciter."
-                : Strings.Get("status.selectBelow")
-            : toDownload == 0 ? Strings.Get("status.alreadyDownloaded") : Strings.Get("status.toDownload", toDownload);
-
-        DownloadButton.Content = toDownload > 0 ? Strings.Get("status.downloadN", toDownload) : Strings.Get("reciters.downloadSelected");
-        DownloadButton.IsEnabled = toDownload > 0;
-        DeleteButton.Content = toDelete > 0 ? Strings.Get("status.deleteN", toDelete) : Strings.Get("reciters.deleteSelected");
-        DeleteButton.IsEnabled = toDelete > 0;
-        Progress.Visibility = Visibility.Collapsed;
-    }
-
-    private void OnTileChanged()
-    {
-        if (!_bulkUpdate)
-            UpdateSummary();
+        UpdateHint();
     }
 
     private void OnJobChanged(string key, JobProgress? progress)
     {
-        if (key != JobKey)
-            return;
-
-        if (progress is null)
-        {
-            foreach (var tile in _tiles.Where(t => t.State == SurahState.Downloading))
-                tile.SetState(SurahState.Missing);
-            RefreshStates();
-            _onChanged();
-            return;
-        }
-
-        // Mark finished ones as we go so the grid fills in live.
-        var cached = new HashSet<int>(_ctx.Cache.CachedSurahsFor(SettingsContext.Rec(_reciter.Id)));
-        foreach (var tile in _tiles)
-        {
-            if (cached.Contains(tile.Number))
-                tile.SetState(SurahState.Downloaded);
-            else if (tile.Number == progress.CurrentSurah)
-                tile.SetState(SurahState.Downloading);
-            else if (tile.State == SurahState.Downloading)
-                tile.SetState(SurahState.Missing);
-        }
-
-        Progress.Visibility = Visibility.Visible;
-        Progress.Value = progress.Fraction;
-        StatusText.Text = progress.CurrentItem is null ? Strings.Get("status.finishing") : Strings.Get("status.downloadingItem", progress.CurrentItem);
-        StatusDetail.Text = Strings.Get("status.doneOf", progress.Done, progress.Total);
-        DownloadButton.Content = Strings.Get("common.cancel");
-        DownloadButton.IsEnabled = true;
-        DeleteButton.IsEnabled = false;
-    }
-
-    private void OnJobFailed(string key, string message)
-    {
-        if (key == JobKey)
-            MessageBox.Show(message, Strings.Get("dialog.downloadFailed"), MessageBoxButton.OK, MessageBoxImage.Warning);
-    }
-
-    private void OnJobNotice(string key, string message)
-    {
-        if (key == JobKey)
-            MessageBox.Show(message, Strings.Get("dialog.someSkipped"), MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    private void Download_Click(object sender, RoutedEventArgs e)
-    {
-        if (IsDownloading)
-        {
-            _ctx.Downloads.CancelAll();
-            return;
-        }
-
-        var surahs = _tiles.Where(t => t.IsSelected && t.State == SurahState.Missing).Select(t => t.Number).ToList();
-        if (surahs.Count == 0)
-            return;
-
-        // Al-Fatihah always comes along: its first verse is this reciter's basmalah.
-        _ctx.Downloads.EnqueueReciter(SettingsContext.Rec(_reciter.Id), surahs, alsoAlFatihah: true);
-    }
-
-    private void Delete_Click(object sender, RoutedEventArgs e)
-    {
-        var surahs = _tiles.Where(t => t.IsSelected && t.State == SurahState.Downloaded).Select(t => t.Number).ToList();
-        if (surahs.Count == 0)
-            return;
-
-        var answer = MessageBox.Show(
-            Strings.Get("dialog.deleteSelectedAsk", surahs.Count, _reciter.Name),
-            Strings.Get("dialog.deleteDownloads"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
-        if (answer != MessageBoxResult.Yes)
-            return;
-
-        _ctx.Samples.Stop();
-        foreach (var surah in surahs)
-            _ctx.Cache.DeleteSurahAudio(SettingsContext.Rec(_reciter.Id), surah);
-
-        SetAll(false);
-        RefreshStates();
+        foreach (var row in _rows.Where(r => r.JobKey == key))
+            row.OnJob(progress);
         _onChanged();
     }
 
-    private void SetAll(bool value, Func<ReciterSurahTile, bool>? where = null)
+    private void RefreshRows()
     {
-        _bulkUpdate = true;
-        foreach (var tile in _tiles)
-            tile.IsSelected = value && tile.State != SurahState.Unavailable && (where?.Invoke(tile) ?? true);
-        _bulkUpdate = false;
-        UpdateSummary();
+        foreach (var row in _rows)
+            row.RefreshStatus();
+        _onChanged();
     }
 
-    private void SelectAll_Click(object sender, RoutedEventArgs e) => SetAll(true);
-
-    private void SelectMissing_Click(object sender, RoutedEventArgs e) => SetAll(true, t => t.State == SurahState.Missing);
-
-    private void Clear_Click(object sender, RoutedEventArgs e) => SetAll(false);
-
-    private void Search_Changed(object sender, TextChangedEventArgs e)
+    private void OnSelectionChanged()
     {
-        var query = Search.Text.Trim();
-        SearchHint.Visibility = query.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var tile in _tiles)
-            tile.IsVisible = tile.Matches(query);
+        // This reciter's rows replace only this reciter's entries; everyone else's stay as they were.
+        var mine = _reciter.Recitations.Select(r => r.Id).ToHashSet();
+        var others = _ctx.Settings.Recitations.Where(id => !mine.Contains(id));
+        var chosen = _rows.Where(r => r.IsSelected).Select(r => r.Recitation.Id);
+
+        _ctx.Settings.RecitationIds = [.. chosen.Concat(others).Distinct().Select(id => id.ToString())];
+        _ctx.Changed();
+        UpdateHint();
     }
 
-    private void Listen_Click(object sender, RoutedEventArgs e)
+    private void UpdateHint()
     {
-        var cached = _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(_reciter.Id));
-        if (cached.Count == 0)
-        {
-            MessageBox.Show(Strings.Get("dialog.downloadFirst"), Strings.Get("dialog.nothingDownloadedYet"), MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-        var surah = cached.OrderByDescending(s => s).First();
-        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(SettingsContext.Rec(_reciter.Id), surah), (float)_ctx.Settings.Volume);
+        var chosen = _rows.Count(r => r.IsSelected);
+        Hint.Text = chosen == 0 ? Strings.Get("recitation.noneSelected") : string.Empty;
     }
-
-    private void UpdateListen() =>
-        ListenGlyph.Text = _ctx.Samples.PlayingKey == JobKey ? "\uE71A" : "\uE768";
 
     private void Back_Click(object sender, RoutedEventArgs e)
     {
@@ -232,40 +82,72 @@ public partial class ReciterDetailPage : UserControl
     }
 }
 
-internal enum SurahState
+/// <summary>One recording of one reciter: whether it plays, what is downloaded, and how well it syncs.</summary>
+internal sealed class RecitationRow : ObservableObject
 {
-    Missing,
-    Downloading,
-    Downloaded,
+    private static readonly Brush WordBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x1F, 0x7A, 0x63)));
+    private static readonly Brush VerseBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x2B, 0x4A, 0x6B)));
+    private static readonly Brush NoneBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9D, 0x5D, 0x00)));
 
-    /// <summary>Listed by Quran.com but not actually hosted — cannot be downloaded.</summary>
-    Unavailable,
-}
-
-internal sealed class ReciterSurahTile : ObservableObject
-{
-    private static readonly Brush DownloadedBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x1F, 0x7A, 0x63)));
-    private static readonly Brush MissingBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9D, 0x9D, 0x9D)));
-    private static readonly Brush DownloadingBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9D, 0x5D, 0x00)));
-    private static readonly Brush UnavailableBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xB0, 0x4A, 0x3A)));
-
-    private readonly Action _changed;
-    private readonly string _nameArabic;
+    private readonly SettingsContext _ctx;
+    private readonly Action _selectionChanged;
     private bool _isSelected;
-    private bool _isVisible = true;
-    private SurahState _state;
+    private string _statusText = string.Empty;
+    private bool _hasDownloads;
+    private bool _isDownloading;
+    private double _progress;
 
-    public ReciterSurahTile(Chapter chapter, Action changed)
+    public RecitationRow(SettingsContext ctx, ReciterEntry reciter, Recitation recitation, Action selectionChanged, Action changed)
     {
-        _changed = changed;
-        Number = chapter.Number;
-        NameSimple = chapter.NameSimple;
-        _nameArabic = chapter.NameArabic;
+        _ctx = ctx;
+        _selectionChanged = selectionChanged;
+        Recitation = recitation;
+        JobKey = $"reciter:{recitation.Id}";
+        _isSelected = ctx.Settings.Recitations.Contains(recitation.Id);
+
+        Riwayah = recitation.Riwayah(Strings.IsArabic);
+        Style = (Strings.IsArabic ? recitation.StyleArabic : recitation.StyleEnglish ?? recitation.StyleArabic) ?? string.Empty;
+
+        OpenCommand = new RelayCommand(() =>
+        {
+            ctx.Samples.Stop();
+            ctx.NavigateTo?.Invoke(new RecitationSurahsPage(ctx, reciter, recitation, changed));
+        });
+
+        OnJob(ctx.Downloads.ProgressOf(JobKey));
+        RefreshStatus();
     }
 
-    public int Number { get; }
-    public string NameSimple { get; }
-    public SurahState State => _state;
+    public Recitation Recitation { get; }
+    public string JobKey { get; }
+    public string Riwayah { get; }
+    public string Style { get; }
+    public bool HasStyle => Style.Length > 0;
+    public RelayCommand OpenCommand { get; }
+
+    /// <summary>Riwāyah and style keep their own direction — Arabic names inside an English layout and back.</summary>
+    public FlowDirection TextDirection =>
+        Strings.IsRightToLeftText(Riwayah) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+
+    public string SourceName => Strings.Get(Recitation.Id.Source == RecitationSource.QuranCom
+        ? "recitation.source.qurancom"
+        : "recitation.source.mp3quran");
+
+    public string TimingText => Recitation.Timing switch
+    {
+        TimingLevel.Word => Strings.Get("recitation.timing.word"),
+        TimingLevel.Verse when Recitation.TimedSurahs.Count < Recitation.AvailableSurahs.Count =>
+            Strings.Get("recitation.timing.partial", Recitation.TimedSurahs.Count, Recitation.AvailableSurahs.Count),
+        TimingLevel.Verse => Strings.Get("recitation.timing.verse"),
+        _ => Strings.Get("recitation.timing.none"),
+    };
+
+    public Brush TimingBrush => Recitation.Timing switch
+    {
+        TimingLevel.Word => WordBrush,
+        TimingLevel.Verse => VerseBrush,
+        _ => NoneBrush,
+    };
 
     public bool IsSelected
     {
@@ -273,59 +155,44 @@ internal sealed class ReciterSurahTile : ObservableObject
         set
         {
             if (Set(ref _isSelected, value))
-                _changed();
+                _selectionChanged();
         }
     }
 
-    public bool IsVisible { get => _isVisible; set => Set(ref _isVisible, value); }
+    public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
+    public bool HasDownloads { get => _hasDownloads; private set => Set(ref _hasDownloads, value); }
+    public bool IsDownloading { get => _isDownloading; private set => Set(ref _isDownloading, value); }
+    public double Progress { get => _progress; private set => Set(ref _progress, value); }
 
-    public string StateText => _state switch
+    public void RefreshStatus()
     {
-        SurahState.Downloaded => Strings.Get("common.downloaded"),
-        SurahState.Downloading => Strings.Get("reciters.downloading"),
-        SurahState.Unavailable => Strings.Get("reciters.notAvailable"),
-        _ => Strings.Get("reciters.notDownloaded"),
-    };
-
-    public string StateGlyph => _state switch
-    {
-        SurahState.Downloaded => "\uE73E",   // check mark
-        SurahState.Downloading => "\uE896",  // download arrow
-        SurahState.Unavailable => "\uE7BA",  // warning
-        _ => "",
-    };
-
-    public Brush StateBrush => _state switch
-    {
-        SurahState.Downloaded => DownloadedBrush,
-        SurahState.Downloading => DownloadingBrush,
-        SurahState.Unavailable => UnavailableBrush,
-        _ => MissingBrush,
-    };
-
-    /// <summary>Unavailable tiles are dimmed and cannot be picked.</summary>
-    public bool IsSelectable => _state != SurahState.Unavailable;
-
-    public double TileOpacity => _state == SurahState.Unavailable ? 0.55 : 1.0;
-
-    public void SetState(SurahState state)
-    {
-        if (_state == state)
+        if (IsDownloading)
             return;
-        _state = state;
-        Raise(nameof(State));
-        Raise(nameof(StateText));
-        Raise(nameof(StateGlyph));
-        Raise(nameof(StateBrush));
-        Raise(nameof(IsSelectable));
-        Raise(nameof(TileOpacity));
+
+        var have = _ctx.Cache.CachedSurahsFor(Recitation.Id).Count;
+        var available = Recitation.AvailableSurahs.Count;
+        HasDownloads = have > 0;
+        StatusText = have == 0
+            ? Strings.Get("recitation.surahsAvailable", available)
+            : Strings.Get("recitation.downloadedOf", have, available);
     }
 
-    public bool Matches(string query) =>
-        query.Length == 0
-        || NameSimple.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || _nameArabic.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || Number.ToString() == query;
+    public void OnJob(JobProgress? progress)
+    {
+        if (progress is null)
+        {
+            IsDownloading = false;
+            Progress = 0;
+            RefreshStatus();
+            return;
+        }
+
+        IsDownloading = true;
+        Progress = progress.Fraction;
+        StatusText = progress.CurrentItem is null
+            ? Strings.Get("status.finishing")
+            : Strings.Get("status.downloadingOf", progress.CurrentItem, progress.Done, progress.Total);
+    }
 
     private static T Freeze<T>(T freezable) where T : Freezable
     {

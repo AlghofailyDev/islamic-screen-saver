@@ -47,7 +47,10 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" ToolTip="Play this reciter" />
+                                <!-- A speaker mark, not a checkbox: what plays is chosen per recitation inside. -->
+                                <TextBlock Text="&#xE767;" Style="{StaticResource Icon}" FontSize="13" VerticalAlignment="Center" Width="16"
+                                           Foreground="{DynamicResource AccentBrush}" ToolTip="{s:Loc recitation.playing}"
+                                           Visibility="{Binding IsPlaying, Converter={StaticResource BoolToVisibility}}" />
 
                                 <Border Grid.Column="1" Width="36" Height="36" CornerRadius="18" Background="{Binding AvatarBrush}" Margin="16,0,0,0">
                                     <TextBlock Text="{Binding Initials}" FontSize="13" FontWeight="SemiBold" Foreground="{Binding AvatarForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -58,27 +61,21 @@
                                     <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Caption}" Margin="0,2,0,0" />
                                 </StackPanel>
 
-                                <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="0,0,12,0" MinWidth="170">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <TextBlock Text="&#xE73E;" Style="{StaticResource Icon}" FontSize="12" Foreground="{DynamicResource SuccessBrush}" Margin="0,0,6,0"
-                                                   Visibility="{Binding IsComplete, Converter={StaticResource BoolToVisibility}}" />
-                                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource Caption}" />
-                                    </StackPanel>
-                                    <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="1" Height="3" Margin="0,6,0,0" BorderThickness="0"
-                                                 Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}" />
+                                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0" MinWidth="170" HorizontalAlignment="Right">
+                                    <TextBlock Text="&#xE73E;" Style="{StaticResource Icon}" FontSize="12" Foreground="{DynamicResource SuccessBrush}" Margin="0,0,6,0"
+                                               Visibility="{Binding HasDownloads, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource Caption}" />
                                 </StackPanel>
 
-                                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="{Binding PlayGlyph}" Style="{StaticResource IconButton}" Command="{Binding PlayCommand}" ToolTip="Listen to a downloaded surah" Margin="0,0,8,0" />
-                                    <Button Content="&#xE76C;" Style="{StaticResource IconButton}" Command="{Binding OpenCommand}" ToolTip="Choose surahs to download" />
-                                </StackPanel>
+                                <Button Grid.Column="4" Content="&#xE76C;" Style="{StaticResource IconButton}" VerticalAlignment="Center"
+                                        Command="{Binding OpenCommand}" ToolTip="{s:Loc recitation.choose}" />
                             </Grid>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </Border>
-        <TextBlock x:Name="EmptyText" Text="The reciter list has not been fetched yet — connect to the internet and click Refresh list." Style="{StaticResource Caption}" Margin="0,8,0,0" Visibility="Collapsed" />
+        <TextBlock x:Name="EmptyText" Text="{s:Loc reciters.empty}" Style="{StaticResource Caption}" Margin="0,8,0,0" Visibility="Collapsed" />
 
         <TextBlock x:Name="StorageText" Style="{StaticResource PathText}" Margin="0,16,0,0" />
     </StackPanel>

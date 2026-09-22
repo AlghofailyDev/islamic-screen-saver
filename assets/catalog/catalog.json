@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "BuiltAt": "2026-09-22T17:18:27.6142953+00:00",
+  "BuiltAt": "2026-09-22T18:52:09.2305036+00:00",
   "Reciters": [
     {
       "Id": "mq-307",
@@ -739,6 +739,16 @@
       "NameArabic": "عبدالمحسن القاسم",
       "NameEnglish": "Abdulmohsen Al-Qasim",
       "Recitations": [
+        {
+          "Id": "qurancom:11",
+          "ReciterId": "mq-67",
+          "RiwayahArabic": "حفص عن عاصم",
+          "Timing": "Word",
+          "AvailableSurahs": "1-114",
+          "AudioUrlTemplate": "https://download.quranicaudio.com/quran/abdul_muhsin_alqasim/{surah:000}.mp3",
+          "AudioIncludesBasmalah": false,
+          "TimedSurahs": "1-114"
+        },
         {
           "Id": "mp3quran:67",
           "ReciterId": "mq-67",
@@ -3419,15 +3429,6 @@
       "NameEnglish": "Mohammad Al-Tablaway",
       "Recitations": [
         {
-          "Id": "qurancom:11",
-          "ReciterId": "mq-106",
-          "RiwayahArabic": "حفص عن عاصم",
-          "Timing": "Word",
-          "AvailableSurahs": "1-114",
-          "AudioIncludesBasmalah": false,
-          "TimedSurahs": "1-114"
-        },
-        {
           "Id": "mp3quran:106",
           "ReciterId": "mq-106",
           "RiwayahArabic": "حفص عن عاصم",
@@ -4951,6 +4952,7 @@
           "RiwayahArabic": "حفص عن عاصم",
           "Timing": "Word",
           "AvailableSurahs": "1-114",
+          "AudioUrlTemplate": "https://download.quranicaudio.com/qdc/saud_ash-shuraym/murattal/{surah:000}.mp3",
           "AudioIncludesBasmalah": false,
           "TimedSurahs": "1-114"
         },
@@ -6013,6 +6015,16 @@
       "RiwayahEnglish": "Rewayat Hafs A'n Assem",
       "AudioUrlTemplate": "https://server16.mp3quran.net/a_alaskar/Rewayat-Hafs-A-n-Assem/{surah:000}.mp3",
       "TimedSurahs": ""
+    },
+    {
+      "Id": "qurancom:11",
+      "ReciterId": "mq-67",
+      "RiwayahArabic": "حفص عن عاصم",
+      "Timing": "Word",
+      "AvailableSurahs": "1-114",
+      "AudioUrlTemplate": "https://download.quranicaudio.com/quran/abdul_muhsin_alqasim/{surah:000}.mp3",
+      "AudioIncludesBasmalah": false,
+      "TimedSurahs": "1-114"
     },
     {
       "Id": "mp3quran:67",
@@ -7910,15 +7922,6 @@
       "TimedSurahs": ""
     },
     {
-      "Id": "qurancom:11",
-      "ReciterId": "mq-106",
-      "RiwayahArabic": "حفص عن عاصم",
-      "Timing": "Word",
-      "AvailableSurahs": "1-114",
-      "AudioIncludesBasmalah": false,
-      "TimedSurahs": "1-114"
-    },
-    {
       "Id": "mp3quran:106",
       "ReciterId": "mq-106",
       "RiwayahArabic": "حفص عن عاصم",
@@ -8966,6 +8969,7 @@
       "RiwayahArabic": "حفص عن عاصم",
       "Timing": "Word",
       "AvailableSurahs": "1-114",
+      "AudioUrlTemplate": "https://download.quranicaudio.com/qdc/saud_ash-shuraym/murattal/{surah:000}.mp3",
       "AudioIncludesBasmalah": false,
       "TimedSurahs": "1-114"
     },

@@ -6,18 +6,25 @@ namespace IslamicScreensaver.Core.Content;
 /// </summary>
 public static class StarterContent
 {
-    /// <summary>Mishari Rashid al-ʿAfasy, murattal — Quran.com recitation id 7.</summary>
-    public static RecitationId Recitation { get; } = RecitationId.QuranCom(7);
+    /// <summary>Mishari Rashid al-ʿAfasy, murattal — Quran.com recitation id 7, word-level timings.</summary>
+    public static RecitationId RecitationId { get; } = Content.RecitationId.QuranCom(7);
 
     /// <summary>Saheeh International — Quran.com translation resource id 20.</summary>
     public const int TranslationId = 20;
 
     public static IReadOnlyList<int> Surahs { get; } = [1, .. Enumerable.Range(78, 114 - 78 + 1)];
 
-    public static async Task DownloadAsync(ContentDownloader downloader, IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
+    public static async Task DownloadAsync(
+        ContentDownloader downloader, Catalog catalog, IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
     {
         progress?.Report(new DownloadProgress("catalog", 0, null));
         await downloader.RefreshCatalogAsync(ct);
+
+        if (catalog.Find(RecitationId) is not { } recitation)
+        {
+            Log.Error($"The starter recitation {RecitationId} is not in the catalog; skipping the audio.");
+            return;
+        }
 
         foreach (var surah in Surahs)
         {
@@ -26,7 +33,7 @@ public static class StarterContent
             await downloader.EnsureSurahTranslationAsync(TranslationId, surah, ct);
             try
             {
-                await downloader.EnsureSurahAudioAsync(Recitation, surah, progress, ct);
+                await downloader.EnsureSurahAudioAsync(recitation, surah, progress, ct);
             }
             catch (ContentUnavailableException ex)
             {

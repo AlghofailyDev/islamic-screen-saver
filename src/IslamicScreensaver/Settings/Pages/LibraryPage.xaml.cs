@@ -43,16 +43,14 @@ public partial class LibraryPage : UserControl
     private void Rebuild()
     {
         _rows.Clear();
-        var selected = _ctx.SelectedQuranComIds;
+        var selected = _ctx.Settings.Recitations.ToHashSet();
 
-        foreach (var reciterId in _ctx.Cache.CachedRecitations().Where(r => r.Source == RecitationSource.QuranCom).Select(r => r.Number).Order())
-        {
-            var reciter = _ctx.Reciters.FirstOrDefault(r => r.Id == reciterId)
-                          ?? new Reciter(reciterId, $"Reciter {reciterId}", null);
-            _rows.Add(new LibraryRow(_ctx, reciter, selected.Contains(reciterId), OnSelectionChanged, Open, Delete));
-        }
+        // One row per downloaded recording, named by its reciter. A recording the catalog no longer
+        // lists still appears — the files are on disk, and hiding them would look like data loss.
+        foreach (var id in _ctx.Cache.CachedRecitations().OrderBy(r => r.Source).ThenBy(r => r.Number))
+            _rows.Add(new LibraryRow(_ctx, id, selected.Contains(id), OnSelectionChanged, Open, Delete));
 
-        List.ItemsSource = _rows.ToList();
+        List.ItemsSource = _rows.OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         List.Visibility = _rows.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         EmptyState.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -77,14 +75,21 @@ public partial class LibraryPage : UserControl
 
     private void OnSelectionChanged()
     {
-        _ctx.SetSelectedQuranComIds(_rows.Where(r => r.IsSelected).Select(r => r.Id));
+        // Only the downloaded recordings are listed here, so a selection this page cannot see —
+        // something chosen but not yet downloaded — must be carried over rather than dropped.
+        var listed = _rows.Select(r => r.Id).ToHashSet();
+        var others = _ctx.Settings.Recitations.Where(id => !listed.Contains(id));
+        var chosen = _rows.Where(r => r.IsSelected).Select(r => r.Id);
+
+        _ctx.Settings.RecitationIds = [.. chosen.Concat(others).Distinct().Select(id => id.ToString())];
         _ctx.Changed();
     }
 
     private void Open(LibraryRow row)
     {
         _ctx.Samples.Stop();
-        _ctx.NavigateTo?.Invoke(new ReciterDetailPage(_ctx, row.Reciter, Rebuild));
+        if (_ctx.Catalog.ReciterOf(row.Id) is { } reciter)
+            _ctx.NavigateTo?.Invoke(new ReciterDetailPage(_ctx, reciter, Rebuild));
     }
 
     private void Delete(LibraryRow row)
@@ -96,10 +101,10 @@ public partial class LibraryPage : UserControl
             return;
 
         _ctx.Samples.Stop();
-        foreach (var surah in _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(row.Id)))
-            _ctx.Cache.DeleteSurahAudio(SettingsContext.Rec(row.Id), surah);
+        foreach (var surah in _ctx.Cache.CachedSurahsFor(row.Id))
+            _ctx.Cache.DeleteSurahAudio(row.Id, surah);
 
-        if (_ctx.SelectedQuranComIds.Contains(row.Id))
+        if (_ctx.Settings.Recitations.Contains(row.Id))
             _ctx.Changed();
         Rebuild();
     }
@@ -233,35 +238,40 @@ internal sealed class LibraryRow : ObservableObject
     private readonly Action _selectionChanged;
     private bool _isSelected;
 
-    public LibraryRow(SettingsContext ctx, Reciter reciter, bool isSelected, Action selectionChanged, Action<LibraryRow> open, Action<LibraryRow> delete)
+    public LibraryRow(SettingsContext ctx, RecitationId id, bool isSelected, Action selectionChanged, Action<LibraryRow> open, Action<LibraryRow> delete)
     {
         _ctx = ctx;
         _selectionChanged = selectionChanged;
-        Reciter = reciter;
-        Id = reciter.Id;
-        Name = reciter.Name;
+        Id = id;
         _isSelected = isSelected;
-        JobKey = $"reciter:{reciter.Id}";
+        JobKey = $"reciter:{id}";
 
-        var palette = AvatarPalette[Math.Abs(reciter.Id) % AvatarPalette.Length];
+        var recitation = ctx.Recitation(id);
+        var reciter = ctx.Catalog.ReciterOf(id);
+        Name = reciter?.Name(Strings.IsArabic) ?? id.ToString();
+        CanOpen = reciter is not null;
+
+        var palette = AvatarPalette[Math.Abs(id.GetHashCode()) % AvatarPalette.Length];
         AvatarBrush = (Brush)new BrushConverter().ConvertFromString(palette.Bg)!;
         AvatarForeground = (Brush)new BrushConverter().ConvertFromString(palette.Fg)!;
-        Initials = string.Concat(reciter.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
+        Initials = Name.Length > 0 ? Name[..1] : "?";
 
-        var surahs = ctx.Cache.CachedSurahsFor(SettingsContext.Rec(reciter.Id));
+        var surahs = ctx.Cache.CachedSurahsFor(id);
         SurahCount = surahs.Count;
-        var style = string.IsNullOrEmpty(reciter.Style) ? "" : $"{reciter.Style}  ·  ";
+        var style = recitation is null ? "" : $"{recitation.Describe(Strings.IsArabic)}  ·  ";
         Detail = style + Strings.Get("library.surahsOf", SurahCount);
-        SizeText = Strings.Get("common.megabytes", (SizeOnDisk(ctx, reciter.Id, surahs) / 1024.0 / 1024.0).ToString("0.0"));
+        SizeText = Strings.Get("common.megabytes", (SizeOnDisk(ctx, id, surahs) / 1024.0 / 1024.0).ToString("0.0"));
 
         OpenCommand = new RelayCommand(() => open(this));
         DeleteCommand = new RelayCommand(() => delete(this));
         PlayCommand = new RelayCommand(Play);
     }
 
-    public Reciter Reciter { get; }
-    public int Id { get; }
+    public RecitationId Id { get; }
     public string Name { get; }
+
+    /// <summary>False for a recording the catalog no longer lists: there is no page to open for it.</summary>
+    public bool CanOpen { get; }
     public string Detail { get; }
     public string SizeText { get; }
     public int SurahCount { get; }
@@ -287,20 +297,20 @@ internal sealed class LibraryRow : ObservableObject
 
     public void RefreshPlaying() => Raise(nameof(PlayGlyph));
 
-    private static long SizeOnDisk(SettingsContext ctx, int reciterId, IReadOnlyCollection<int> surahs)
+    private static long SizeOnDisk(SettingsContext ctx, RecitationId id, IReadOnlyCollection<int> surahs)
     {
         long total = 0;
         foreach (var surah in surahs)
         {
             try
             {
-                var file = new FileInfo(ctx.Cache.AudioPath(SettingsContext.Rec(reciterId), surah));
+                var file = new FileInfo(ctx.Cache.AudioPath(id, surah));
                 if (file.Exists)
                     total += file.Length;
             }
             catch (Exception ex)
             {
-                Log.Error($"Could not measure {reciterId}/{surah}.", ex);
+                Log.Error($"Could not measure {id}/{surah}.", ex);
             }
         }
         return total;
@@ -308,10 +318,10 @@ internal sealed class LibraryRow : ObservableObject
 
     private void Play()
     {
-        var cached = _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(Id));
+        var cached = _ctx.Cache.CachedSurahsFor(Id);
         if (cached.Count == 0)
             return;
         var surah = cached.OrderByDescending(s => s).First();
-        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(SettingsContext.Rec(Id), surah), (float)_ctx.Settings.Volume);
+        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(Id, surah), (float)_ctx.Settings.Volume);
     }
 }

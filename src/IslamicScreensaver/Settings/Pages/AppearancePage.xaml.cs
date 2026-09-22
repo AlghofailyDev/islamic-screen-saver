@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using IslamicScreensaver.Core.Content;
 using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Player;
@@ -96,7 +97,11 @@ public partial class AppearancePage : UserControl
         $"{_ctx.Settings.Background.Kind}|{_ctx.Settings.Background.BundledName}|{_ctx.Settings.Background.FilePath}";
 
     private string VerseSignature() =>
-        $"{_ctx.Settings.ShowTranslation}|{_ctx.Settings.TranslationId}|{_ctx.SelectedQuranComIds.FirstOrDefault()}|{_ctx.Settings.Panel.WordHighlight}";
+        $"{_ctx.Settings.ShowTranslation}|{_ctx.Settings.TranslationId}|{FirstRecitation()}|{_ctx.Settings.Panel.WordHighlight}";
+
+    /// <summary>The recording the preview names, or the starter one before anything has been chosen.</summary>
+    private RecitationId FirstRecitation() =>
+        _ctx.Settings.Recitations.FirstOrDefault(StarterContent.RecitationId);
 
     private void RefreshVerse()
     {
@@ -145,7 +150,7 @@ public partial class AppearancePage : UserControl
             text?.TextUthmani ?? "ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَـٰلَمِينَ",
             text?.Words ?? ["ٱلْحَمْدُ", "لِلَّهِ", "رَبِّ", "ٱلْعَـٰلَمِينَ"],
             translation,
-            _ctx.ReciterName(_ctx.SelectedQuranComIds.FirstOrDefault(7)),
+            _ctx.Catalog.ReciterOf(FirstRecitation())?.Name(Strings.IsArabic) ?? string.Empty,
             IsBismillah: false);
     }
 

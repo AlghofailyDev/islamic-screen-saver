@@ -25,10 +25,14 @@
     <PackageReference Include="NAudio" Version="3.1.0" />
   </ItemGroup>
 
-  <!-- Shipped alongside the binary: the isti'ādhah recording, and any Quran font the user drops in. -->
+  <!--
+    Shipped alongside the binary: the isti'ādhah recording, any Quran font the user drops in, and the
+    catalog of reciters, so a fresh install has the full list before it has spoken to anything.
+  -->
   <ItemGroup>
     <Content Include="..\..\assets\audio\**\*" Link="assets\audio\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\fonts\**\*" Link="assets\fonts\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\catalog\**\*" Link="assets\catalog\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--
