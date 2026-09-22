@@ -299,6 +299,10 @@ Confirmed 2026-09-19: **MP3 Quran publishes ayah timings for 115 recitations** a
 so availability needs no probing. Quran.com has 12 recitations, all Hafs, but with **word**-level timings.
 So the two sources differ in timing detail, not in whether sync is possible.
 
+Corrected 2026-09-22 while building the catalog: the `/reads` list is not the same as having timings.
+Some reads are listed with none at all, and timings are held surah by surah, so a recording can be
+half-timed. `Recitation.TimedSurahs` carries the exact set, separate from the surahs it has audio for.
+
 - [x] **Model**: `RecitationId` (source-qualified, e.g. `qurancom:7`), `Recitation` (riwāyah, style,
       surahs, timing level None/Verse/Word, audio URL template) and `ReciterEntry` (person → recitations)
 - [x] Settings hold recitation ids; schema v2 migrates existing values and writes itself back once
@@ -307,12 +311,19 @@ So the two sources differ in timing detail, not in whether sync is possible.
       never cost a re-download (recovered 132 surahs / 317 MB on the author's machine, 2026-09-22)
 - [x] Playlist, playback state and rotation work over recitations
 - [x] Verified end to end 2026-09-22: migration, index rebuild and resumed playback
-- [ ] **Our own catalog**: a repo script pulls both sources, merges reciters via a curated alias table
-      (Husary appears in both), and writes versioned JSON we host — the app reads that, with the live
-      APIs as fallback. Availability ships with it, so nothing is discovered by failing
+- [x] **Our own catalog**: `tools/CatalogBuilder` pulls both sources, merges reciters via a curated
+      12-row alias table (Husary appears in both) and writes versioned JSON to `assets/catalog/`.
+      Availability ships with it, so nothing is discovered by failing. Built 2026-09-22:
+      **241 reciters, 298 recitations, 13 riwāyāt, 28,466 surahs — 14,355 of them timed.**
+      Surah lists are range strings ("1,78-114"), so 337 KB stays readable and diffs mean something
+- [ ] The app reads the catalog: ship it in the app folder, refresh it from our host, fall back to
+      the live APIs. (Builder writes it; nothing consumes it yet)
 - [ ] Reciters and Library group by reciter, one row per recitation (as in the user's MP3 Quran screenshot)
 - [ ] MP3 Quran playback: its folder pattern + ayah timings through the same `VerseClock`; the word
       highlight turns itself off where only verse timings exist
+- [ ] **Do not play our basmalah over one already in the recording** — `Recitation.AudioIncludesBasmalah`
+      says which. Nearly every mp3quran recording has one (5 of 115 do not); no Quran.com one does
+- [ ] Untimed recordings (172 of them) play with the panel held still on the surah name
 - [ ] Audio stays on the sources' CDNs for now; the catalog carries the URL so moving it later is a
       data change, not a release
 
@@ -335,7 +346,7 @@ So the two sources differ in timing detail, not in whether sync is possible.
 | WPF `MediaElement` weak on 4K video | Cap bundled videos at 1080p; evaluate FFME if user files stutter |
 | Blur shader cost on 4K displays | Blur a downscaled capture of the panel region, not the full frame |
 | Translation licences vary | Only ship translations whose licence allows redistribution; list them in About |
-| Quran.com advertises audio the CDN does not host → the MP3 URL 404s even though the API lists the file (confirmed 2026-09-13: reciter 8 Minshawi Mujawwad, `siddiq_al-minshawi/mujawwad/001.mp3`) | M5b: a 404 marks that surah unavailable, is not retried, and never aborts the job; unavailable surahs are remembered and shown as such |
+| Quran.com advertises audio the CDN does not host → the MP3 URL 404s even though the API lists the file (confirmed 2026-09-13: reciter 8 Minshawi Mujawwad, `siddiq_al-minshawi/mujawwad/001.mp3`) | M5b: a 404 marks that surah unavailable, is not retried, and never aborts the job; unavailable surahs are remembered and shown as such. M8: the catalog build probes every file, and recitation 8 — all 114 of its surahs absent — is no longer offered at all |
 | **Quran.com timing data is misaligned for some surahs** (confirmed 2026-09-13: reciter 7, surah 78 — Al-Fatihah is fine; audio and timings come from the same API response, so it is upstream data) | Test other reciters/surahs in M6; compare against Quran.com's own player; evaluate the newer `audio/reciters/{id}/audio_files?segments=true` endpoint as an alternate timing source; surface `SyncOffsetMs` in Settings |
 
 Open:
@@ -374,4 +385,9 @@ Open:
 | 2026-09-22 | Recitations are identified by a source-qualified id (`qurancom:7`, `mp3quran:1`), not a bare number | Two sources number their recordings independently; a bare `7` would silently mean two different recitations once MP3 Quran lands. The folder name drops the colon, which Windows paths forbid |
 | 2026-09-22 | A person (reciter) owns many recordings (riwāyah × style), each with its own surah list and timing level | Husary appears under Hafs and Warsh, murattal and mujawwad; the library has to say which recording it holds |
 | 2026-09-22 | The manifest is an index, not the record: an empty one is rebuilt by scanning the audio folder | A schema change blanked the index and made 317 MB of downloaded audio invisible. The files are the truth — a surah counts once both its `.mp3` and `.timings.json` are on disk |
+| 2026-09-22 | The catalog carries every recording, timed or not — not only the 115 with timings | The variety of reciters is the reason for adding mp3quran at all. Each recording says which surahs can be followed, so an untimed one plays with a still panel rather than being hidden |
+| 2026-09-22 | Quran.com availability is settled by asking the CDN for every file (1,368 requests), not by trusting its chapter list | Recitation 8 lists 114 surahs and hosts none. Probing at build time is half a minute for us and no 404 for anyone else |
+| 2026-09-22 | mp3quran's riwāyāt 21 and 22 ("المصحف المعلم", "المصحف المجود") are published as styles of Ḥafṣ | They are ways of presenting a recitation, not riwāyāt. Left as-is they would split Minshawi and Husary across riwāyāt that do not exist |
+| 2026-09-22 | Whether a recording opens with the basmalah is probed per recording, not assumed per source | mp3quran labels it "ayah 0" in about three quarters of them and leaves it untimed in the rest, which start verse 1 six or eight seconds in. Reading the ayah number alone would have us play a second basmalah over the first |
+| 2026-09-22 | Surah lists in the catalog are range strings ("1,78-114"), not JSON arrays | 28,000 numbers as arrays is a file nobody reads and a diff nobody can follow; as ranges it is 337 KB and a changed line means something |
 | 2026-09-13 | Settings app on .NET 10's built-in Fluent theme + a few in-house controls (nav pane, toggle switch, settings card), superseding WPF UI (lepo.co) | Covers the design with one fewer dependency; the pieces WPF UI added (NavigationView, ToggleSwitch) are small to write and fully under our control |

@@ -4,4 +4,7 @@
     <Project Path="src/IslamicScreensaver.Tests/IslamicScreensaver.Tests.csproj" />
     <Project Path="src/IslamicScreensaver/IslamicScreensaver.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/CatalogBuilder/CatalogBuilder.csproj" />
+  </Folder>
 </Solution>
