@@ -326,8 +326,9 @@ half-timed. `Recitation.TimedSurahs` carries the exact set, separate from the su
 - [x] Only the surahs a recording actually has are shown — no gap discovered by a failed download
 - [x] MP3 Quran playback: file URL and ayah timings both come from the catalog, through the same
       `VerseClock`; the word highlight has nothing to follow where only verse timings exist
-- [x] **Do not play our basmalah over one already in the recording** — `Recitation.AudioIncludesBasmalah`
-      says which, per recording, and `RecitationProgram.Build` takes it as a predicate
+- [x] **Do not play our basmalah over one already in the recording** — `RecordedBasmalah` reads the
+      surah's own timings at play time. Corrected 2026-09-23: the answer is per **surah**, not per
+      recording, so the catalog flag could not carry it
 - [x] mp3quran's "ayah 0" is the basmalah, not a verse: dropped on parse, or every ayah in the surah
       would be off by one
 - [ ] Untimed recordings (172 of them) play with the panel held still on the surah name — the catalog
@@ -397,6 +398,7 @@ Open:
 | 2026-09-22 | Quran.com availability is settled by asking the CDN for every file (1,368 requests), not by trusting its chapter list | Recitation 8 lists 114 surahs and hosts none. Probing at build time is half a minute for us and no 404 for anyone else |
 | 2026-09-22 | mp3quran's riwāyāt 21 and 22 ("المصحف المعلم", "المصحف المجود") are published as styles of Ḥafṣ | They are ways of presenting a recitation, not riwāyāt. Left as-is they would split Minshawi and Husary across riwāyāt that do not exist |
 | 2026-09-22 | Whether a recording opens with the basmalah is probed per recording, not assumed per source | mp3quran labels it "ayah 0" in about three quarters of them and leaves it untimed in the rest, which start verse 1 six or eight seconds in. Reading the ayah number alone would have us play a second basmalah over the first |
+| 2026-09-23 | **Superseded**: the basmalah question is answered per **surah**, from that surah's timings, not per recording from the catalog | One probed surah cannot speak for a recording. mp3quran:236 has 4.4s of basmalah before an-Nas and 0.86s before al-Baqarah; probing al-Baqarah marked the whole set "no basmalah" and the user heard it twice on the other 112 surahs. Audio before verse 1 is the basmalah — 2.2s to 14.8s where there is one, under a second where there is not. Needs no rebuild and no re-download; the catalog flag stays as a note for the reader |
 | 2026-09-22 | Playback selection lives on the recitation, not the reciter | A reciter is not something you can play — Husary has seven recordings across four riwāyāt. The Reciters page browses people; the tick that decides what you hear is on the recording |
 | 2026-09-22 | Quran.com's recitation 11 is filed under Abdul Muhsin al-Qasim, not the "Mohamed al-Tablawi" it is labelled | All 114 of its files are served from `abdul_muhsin_alqasim/`. The audio is what the listener hears, so the alias follows the path; the label would put one reciter's voice on another's page |
 | 2026-09-22 | Surah lists in the catalog are range strings ("1,78-114"), not JSON arrays | 28,000 numbers as arrays is a file nobody reads and a diff nobody can follow; as ranges it is 337 KB and a changed line means something |

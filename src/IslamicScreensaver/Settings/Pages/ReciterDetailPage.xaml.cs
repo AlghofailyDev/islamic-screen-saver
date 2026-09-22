@@ -149,6 +149,9 @@ internal sealed class RecitationRow : ObservableObject
         _ => NoneBrush,
     };
 
+    /// <summary>Shown as a note about the recording. Playback works it out per surah, not from this.</summary>
+    public bool OpensWithBasmalah => Recitation.AudioIncludesBasmalah == true;
+
     public bool IsSelected
     {
         get => _isSelected;

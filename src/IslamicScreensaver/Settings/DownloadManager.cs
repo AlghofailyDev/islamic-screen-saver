@@ -59,9 +59,10 @@ internal sealed class DownloadManager
         var id = recitation.Id;
         var wanted = surahs.ToList();
 
-        // Only worth fetching where the basmalah has to come from this reciter's own Al-Fatihah.
-        // A recording that opens every surah with one already has it.
-        if (alsoAlFatihah && recitation.AudioIncludesBasmalah != true && !wanted.Contains(RecitationProgram.AlFatihah))
+        // Al-Fatihah comes along regardless of what the catalog says about this recording's basmalah:
+        // that answer varies surah by surah, so some surahs will still need one supplied from the
+        // reciter's own voice. It is under a megabyte.
+        if (alsoAlFatihah && !wanted.Contains(RecitationProgram.AlFatihah))
             wanted.Insert(0, RecitationProgram.AlFatihah);
 
         var pending = wanted.Where(s => !_cache.HasSurahAudio(id, s) && !_cache.IsUnavailable(id, s)).ToList();

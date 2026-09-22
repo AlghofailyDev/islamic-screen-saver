@@ -49,6 +49,8 @@
                                         <TextBlock Text="{Binding Style}" Style="{StaticResource Caption}" FlowDirection="{Binding TextDirection}" Margin="0,0,10,0"
                                                    Visibility="{Binding HasStyle, Converter={StaticResource BoolToVisibility}}" />
                                         <TextBlock Text="{Binding TimingText}" Style="{StaticResource Caption}" Foreground="{Binding TimingBrush}" Margin="0,0,10,0" />
+                                        <TextBlock Text="{s:Loc recitation.basmalahIncluded}" Style="{StaticResource Caption}" Foreground="{DynamicResource TextDisabledBrush}" Margin="0,0,10,0"
+                                                   Visibility="{Binding OpensWithBasmalah, Converter={StaticResource BoolToVisibility}}" />
                                         <TextBlock Text="{Binding SourceName}" Style="{StaticResource Caption}" Foreground="{DynamicResource TextDisabledBrush}" />
                                     </StackPanel>
                                 </StackPanel>

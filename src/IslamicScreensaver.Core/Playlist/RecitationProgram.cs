@@ -23,8 +23,9 @@ public sealed record RecitationStep(RecitationPart Part, PlaylistItem Item, int 
 /// <remarks>
 /// Quran.com's surah recordings are uniform: only Al-Fatihah contains the basmalah (as its first
 /// verse). At-Tawbah is recited without one. Every other surah therefore needs the basmalah supplied.
-/// mp3quran.net's recordings mostly open with one already — <paramref name="audioHasBasmalah"/> is
-/// how the caller says so, and a second basmalah over the first would be worse than none.
+/// mp3quran.net's recordings mostly open with one already — and not uniformly, but surah by surah.
+/// <c>audioHasBasmalah</c> is how the caller says so; see <see cref="RecordedBasmalah"/>. A second
+/// basmalah over the first would be worse than none.
 /// </remarks>
 public static class RecitationProgram
 {
@@ -61,9 +62,11 @@ public static class RecitationProgram
             var index = (startIndex + i) % playlist.Count;
             var item = playlist[index];
 
-            // The surah we resume into is already under way, so its basmalah has passed.
+            // The surah we resume into is already under way, so its basmalah has passed. The
+            // recording is only consulted for surahs that would otherwise need one, which keeps the
+            // predicate — a timings file read, per item — off Al-Fatihah and at-Tawbah.
             var isResumedSurah = i == 0 && startsMidSurah;
-            if (!isResumedSurah && NeedsBasmalah(item.Surah, audioHasBasmalah?.Invoke(item) ?? false))
+            if (!isResumedSurah && NeedsBasmalah(item.Surah) && !(audioHasBasmalah?.Invoke(item) ?? false))
                 steps.Add(new RecitationStep(RecitationPart.Basmalah, item, index));
 
             steps.Add(new RecitationStep(RecitationPart.Surah, item, index));

@@ -41,11 +41,13 @@ public sealed record Recitation(
     public string? TimingsUrlTemplate { get; init; }
 
     /// <summary>
-    /// Whether the recording opens a surah with the basmalah — in which case we must not play our own
-    /// in front of it. Quran.com's files never do (except Al-Fatihah, where it is verse 1).
-    /// mp3quran.net's do, though only some of them label it: the rest leave it as untimed audio before
-    /// the first verse, which is why the builder probes rather than assumes. Null means we could not
+    /// Whether the recording generally opens a surah with the basmalah. Quran.com's files never do
+    /// (except Al-Fatihah, where it is verse 1); mp3quran.net's usually do. Null means we could not
     /// tell, because the recording has no timings to read it from.
+    ///
+    /// This is a description for the reader, not a rule for playback: the builder probes one surah,
+    /// and the answer varies surah by surah within a single recording. What decides whether we play
+    /// our own basmalah is <c>RecordedBasmalah</c>, reading the surah's own timings at play time.
     /// </summary>
     public bool? AudioIncludesBasmalah { get; init; }
 

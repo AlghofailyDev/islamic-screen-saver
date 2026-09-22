@@ -96,10 +96,12 @@ internal sealed class PlaybackEngine : IDisposable
 
         MediaFoundationApi.Startup();
 
+        // Asked of the surah's own timings rather than the catalog: whether a recording opens with
+        // the basmalah varies surah by surah, and the file on disk is the only thing that knows.
         var steps = RecitationProgram.Build(
             _playlist, _startIndex,
             startsMidSurah: _startOffset > TimeSpan.Zero,
-            audioHasBasmalah: item => _catalog.Find(item.Recitation)?.AudioIncludesBasmalah == true);
+            audioHasBasmalah: item => RecordedBasmalah.IsInAudio(_cache, item.Recitation, item.Surah));
         _segments = SegmentBuilder.Build(steps, _cache);
         if (_segments.Count == 0)
         {
