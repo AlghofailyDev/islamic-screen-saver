@@ -1,3 +1,4 @@
+using IslamicScreensaver.Core.Content;
 using IslamicScreensaver.Core.Settings;
 
 namespace IslamicScreensaver.Tests.Settings;
@@ -14,10 +15,32 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SchemaOne_MigratesBareReciterNumbersToRecitationIds()
+    {
+        Directory.CreateDirectory(_dir);
+        System.IO.File.WriteAllText(File, """
+            { "SchemaVersion": 1, "ReciterIds": [7, 2], "Volume": 0.5 }
+            """);
+
+        var s = SettingsStore.Load(File);
+
+        Assert.Equal(["qurancom:7", "qurancom:2"], s.RecitationIds);
+        Assert.Equal(2, s.SchemaVersion);
+        Assert.Equal(0.5, s.Volume);          // everything else survives the migration
+        Assert.Null(s.LegacyReciterIds);
+
+        // And the migrated form is what gets written back.
+        SettingsStore.Save(s, File);
+        var text = System.IO.File.ReadAllText(File);
+        Assert.Contains("qurancom:7", text);
+        Assert.DoesNotContain("\"ReciterIds\"", text);
+    }
+
+    [Fact]
     public void MissingFile_GivesDefaults()
     {
         var s = SettingsStore.Load(File);
-        Assert.Equal([7], s.ReciterIds);
+        Assert.Equal(["qurancom:7"], s.RecitationIds);
         Assert.Null(s.SelectedSurahs);
         Assert.Equal(PlayOrder.Sequential, s.Order);
         Assert.Equal(20, s.TranslationId);
@@ -46,20 +69,33 @@ public sealed class SettingsStoreTests : IDisposable
         Directory.CreateDirectory(_dir);
         System.IO.File.WriteAllText(File, "{{{ nope");
 
-        Assert.Equal([7], SettingsStore.Load(File).ReciterIds);
+        Assert.Equal(["qurancom:7"], SettingsStore.Load(File).RecitationIds);
     }
 
     [Fact]
     public void Normalize_ClampsAndCleans()
     {
-        var s = new AppSettings { Volume = 7, ReciterIds = [0, 7, 7, -1], SelectedSurahs = [0, 200] };
+        var s = new AppSettings
+        {
+            Volume = 7,
+            RecitationIds = ["qurancom:7", "qurancom:7", "nonsense", "", "mp3quran:3"],
+            SelectedSurahs = [0, 200],
+        };
         s.Panel.Blur = double.NaN;
 
         s.Normalize();
 
         Assert.Equal(1, s.Volume);
-        Assert.Equal([7], s.ReciterIds);
+        Assert.Equal(["qurancom:7", "mp3quran:3"], s.RecitationIds);
         Assert.Null(s.SelectedSurahs);
         Assert.Equal(24, s.Panel.Blur);
+    }
+
+    [Fact]
+    public void Recitations_SkipsUnparsableEntriesRatherThanFailing()
+    {
+        var s = new AppSettings { RecitationIds = ["qurancom:7", "rubbish", "mp3quran:1"] };
+
+        Assert.Equal([RecitationId.QuranCom(7), RecitationId.Mp3Quran(1)], s.Recitations);
     }
 }

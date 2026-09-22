@@ -70,18 +70,18 @@ public sealed class ContentDownloader
     /// <exception cref="ContentUnavailableException">
     /// The server does not host this recording (404). It is remembered as unavailable so it is not tried again.
     /// </exception>
-    public async Task EnsureSurahAudioAsync(int reciterId, int surah, IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
+    public async Task EnsureSurahAudioAsync(RecitationId recitation, int surah, IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
     {
-        if (_cache.HasSurahAudio(reciterId, surah))
+        if (_cache.HasSurahAudio(recitation, surah))
             return;
 
         try
         {
-            var audio = await WithRetry(() => _api.GetSurahAudioAsync(reciterId, surah, ct), $"timings {reciterId}/{surah}", ct);
-            await _cache.WriteTimingsAsync(reciterId, surah, audio.Timings, ct);
+            var audio = await WithRetry(() => _api.GetSurahAudioAsync(recitation.Number, surah, ct), $"timings {recitation}/{surah}", ct);
+            await _cache.WriteTimingsAsync(recitation, surah, audio.Timings, ct);
 
-            var target = _cache.AudioPath(reciterId, surah);
-            var label = $"audio {reciterId}/{surah}";
+            var target = _cache.AudioPath(recitation, surah);
+            var label = $"audio {recitation}/{surah}";
             await WithRetry(async () =>
             {
                 await DownloadFileAsync(audio.AudioUrl, target, audio.FileSize, label, progress, ct);
@@ -91,12 +91,12 @@ public sealed class ContentDownloader
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             // Quran.com's catalog lists recordings its CDN does not actually serve. Remember and move on.
-            _cache.MarkUnavailable(reciterId, surah);
-            Log.Info($"Surah {surah} is not hosted for reciter {reciterId}; marked unavailable.");
+            _cache.MarkUnavailable(recitation, surah);
+            Log.Info($"Surah {surah} is not hosted for {recitation}; marked unavailable.");
             throw new ContentUnavailableException($"Surah {surah} is not available from this reciter.");
         }
 
-        _cache.MarkSurahAudioComplete(reciterId, surah);
+        _cache.MarkSurahAudioComplete(recitation, surah);
     }
 
     /// <summary>

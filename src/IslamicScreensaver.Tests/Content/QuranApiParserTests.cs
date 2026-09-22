@@ -19,7 +19,7 @@ public class QuranApiParserTests
 
         var audio = QuranApiParser.ParseSurahAudio(json, reciterId: 7, surah: 1);
 
-        Assert.Equal(7, audio.ReciterId);
+        Assert.Equal(RecitationId.QuranCom(7), audio.Recitation);
         Assert.Equal(1, audio.Surah);
         Assert.Equal("https://download.quranicaudio.com/qdc/mishari_al_afasy/murattal/1.mp3", audio.AudioUrl);
         Assert.Equal(839808, audio.FileSize);

@@ -1,105 +1,108 @@
+using IslamicScreensaver.Core.Content;
 using IslamicScreensaver.Core.Playlist;
 using IslamicScreensaver.Core.Settings;
 
 namespace IslamicScreensaver.Tests.Playlist;
 
+using static TestIds;
+
 public class PlaylistBuilderTests
 {
-    private static Func<int, IReadOnlyCollection<int>> Cache(Dictionary<int, int[]> byReciter) =>
-        id => byReciter.TryGetValue(id, out var s) ? s : [];
+    private static Func<RecitationId, IReadOnlyCollection<int>> Cache(Dictionary<int, int[]> byReciter) =>
+        id => byReciter.TryGetValue(id.Number, out var s) ? s : [];
 
     [Fact]
     public void Sequential_SingleReciter_OnlyCachedSurahs_InOrder()
     {
-        var settings = new AppSettings { ReciterIds = [7], SelectedSurahs = null };
+        var settings = new AppSettings { RecitationIds = [Q(7).ToString()], SelectedSurahs = null };
         var cache = Cache(new() { [7] = [112, 1, 114] });
 
-        var playlist = PlaylistBuilder.Build(settings, cache, [7]);
+        var playlist = PlaylistBuilder.Build(settings, cache, [Q(7)]);
 
-        Assert.Equal([new(7, 1), new(7, 112), new(7, 114)], playlist);
+        Assert.Equal([new(Q(7), 1), new(Q(7), 112), new(Q(7), 114)], playlist);
     }
 
     [Fact]
     public void Selection_FiltersToChosenSurahs()
     {
-        var settings = new AppSettings { ReciterIds = [7], SelectedSurahs = [114, 2] };
+        var settings = new AppSettings { RecitationIds = [Q(7).ToString()], SelectedSurahs = [114, 2] };
         var cache = Cache(new() { [7] = [1, 2, 114] });
 
-        var playlist = PlaylistBuilder.Build(settings, cache, [7]);
+        var playlist = PlaylistBuilder.Build(settings, cache, [Q(7)]);
 
-        Assert.Equal([new(7, 114), new(7, 2)], playlist);
+        Assert.Equal([new(Q(7), 114), new(Q(7), 2)], playlist);
     }
 
     [Fact]
     public void Rotation_TakesTurns_AndSkipsRecitersMissingASurah()
     {
-        var settings = new AppSettings { ReciterIds = [7, 2], RotateReciters = true };
+        var settings = new AppSettings { RecitationIds = [Q(7).ToString(), Q(2).ToString()], RotateReciters = true };
         var cache = Cache(new() { [7] = [1, 2, 3, 4], [2] = [1, 3, 4] });
 
-        var playlist = PlaylistBuilder.Build(settings, cache, [7, 2]);
+        var playlist = PlaylistBuilder.Build(settings, cache, [Q(7), Q(2)]);
 
         // Two reciters → two passes; the turn carries over so pass 2 starts with reciter 2.
         // Pass 1: 1 → 7, 2 → 2's turn but missing so 7, 3 → 2, 4 → 7.  Pass 2: 1 → 2, 2 → 7, 3 → 2, 4 → 7.
         Assert.Equal(
-            [new(7, 1), new(7, 2), new(2, 3), new(7, 4), new(2, 1), new(7, 2), new(2, 3), new(7, 4)],
+            [new(Q(7), 1), new(Q(7), 2), new(Q(2), 3), new(Q(7), 4), new(Q(2), 1), new(Q(7), 2), new(Q(2), 3), new(Q(7), 4)],
             playlist);
     }
 
     [Fact]
     public void Rotation_SingleSurah_AlternatesReciters()
     {
-        var settings = new AppSettings { ReciterIds = [7, 2, 3], RotateReciters = true, SelectedSurahs = [112] };
+        var settings = new AppSettings { RecitationIds = [Q(7).ToString(), Q(2).ToString(), Q(3).ToString()], RotateReciters = true, SelectedSurahs = [112] };
         var cache = Cache(new() { [7] = [112], [2] = [112], [3] = [112] });
 
-        var playlist = PlaylistBuilder.Build(settings, cache, [7, 2, 3]);
+        var playlist = PlaylistBuilder.Build(settings, cache, [Q(7), Q(2), Q(3)]);
 
-        Assert.Equal([new(7, 112), new(2, 112), new(3, 112)], playlist);
+        Assert.Equal([new(Q(7), 112), new(Q(2), 112), new(Q(3), 112)], playlist);
     }
 
     [Fact]
     public void Rotation_NeverRepeatsASurahWithinAPass()
     {
-        var settings = new AppSettings { ReciterIds = [7, 2], RotateReciters = true, SelectedSurahs = [1, 2, 3] };
+        var settings = new AppSettings { RecitationIds = [Q(7).ToString(), Q(2).ToString()], RotateReciters = true, SelectedSurahs = [1, 2, 3] };
         var cache = Cache(new() { [7] = [1, 2, 3], [2] = [1, 2, 3] });
 
-        var playlist = PlaylistBuilder.Build(settings, cache, [7, 2]);
+        var playlist = PlaylistBuilder.Build(settings, cache, [Q(7), Q(2)]);
 
         Assert.Equal(6, playlist.Count);
         Assert.Equal([1, 2, 3], playlist.Take(3).Select(p => p.Surah));
         Assert.Equal([1, 2, 3], playlist.Skip(3).Select(p => p.Surah));
         // Each surah is heard from both reciters across the two passes.
         foreach (var surah in new[] { 1, 2, 3 })
-            Assert.Equal([2, 7], playlist.Where(p => p.Surah == surah).Select(p => p.ReciterId).Order());
+            Assert.Equal([2, 7], playlist.Where(p => p.Surah == surah).Select(p => p.Recitation.Number).Order());
     }
 
     [Fact]
     public void StartIndex_PrefersSameReciter_ThenSameSurah()
     {
-        var playlist = new List<PlaylistItem> { new(7, 1), new(7, 2), new(2, 1), new(2, 2) };
+        var playlist = new List<PlaylistItem> { new(Q(7), 1), new(Q(7), 2), new(Q(2), 1), new(Q(2), 2) };
 
-        Assert.Equal(2, PlaylistBuilder.StartIndex(playlist, new AppSettings(), new PlaybackState { ReciterId = 2, Surah = 1 }));
-        Assert.Equal(0, PlaylistBuilder.StartIndex(playlist, new AppSettings(), new PlaybackState { ReciterId = 99, Surah = 1 }));
+        Assert.Equal(2, PlaylistBuilder.StartIndex(playlist, new AppSettings(), new PlaybackState { RecitationId = Q(2).ToString(), Surah = 1 }));
+        Assert.Equal(0, PlaylistBuilder.StartIndex(playlist, new AppSettings(), new PlaybackState { RecitationId = Q(99).ToString(), Surah = 1 }));
     }
 
     [Fact]
     public void RotationOff_UsesFirstReciterThatHasTheSurah()
     {
-        var settings = new AppSettings { ReciterIds = [7, 2], RotateReciters = false };
+        var settings = new AppSettings { RecitationIds = [Q(7).ToString(), Q(2).ToString()], RotateReciters = false };
         var cache = Cache(new() { [7] = [1, 3], [2] = [1, 2, 3] });
 
-        var playlist = PlaylistBuilder.Build(settings, cache, [7, 2]);
+        var playlist = PlaylistBuilder.Build(settings, cache, [Q(7), Q(2)]);
 
-        Assert.Equal([new(7, 1), new(2, 2), new(7, 3)], playlist);
+        Assert.Equal([new(Q(7), 1), new(Q(2), 2), new(Q(7), 3)], playlist);
     }
 
     [Fact]
     public void Shuffled_IsAPermutation_AndDeterministicForASeed()
     {
-        var settings = new AppSettings { ReciterIds = [7], Order = PlayOrder.Shuffled };
+        var settings = new AppSettings { RecitationIds = [Q(7).ToString()], Order = PlayOrder.Shuffled };
         var cache = Cache(new() { [7] = Enumerable.Range(78, 37).ToArray() });
 
-        var a = PlaylistBuilder.Build(settings, cache, [7], new Random(42));
-        var b = PlaylistBuilder.Build(settings, cache, [7], new Random(42));
+        var a = PlaylistBuilder.Build(settings, cache, [Q(7)], new Random(42));
+        var b = PlaylistBuilder.Build(settings, cache, [Q(7)], new Random(42));
 
         Assert.Equal(a, b);
         Assert.Equal(Enumerable.Range(78, 37), a.Select(p => p.Surah).Order());
@@ -109,12 +112,12 @@ public class PlaylistBuilderTests
     [Fact]
     public void NoRecitersInSettings_FallsBackToWhateverIsCached()
     {
-        var settings = new AppSettings { ReciterIds = [] };
+        var settings = new AppSettings { RecitationIds = [] };
         var cache = Cache(new() { [3] = [1] });
 
-        var playlist = PlaylistBuilder.Build(settings, cache, [3]);
+        var playlist = PlaylistBuilder.Build(settings, cache, [Q(3)]);
 
-        Assert.Equal([new(3, 1)], playlist);
+        Assert.Equal([new(Q(3), 1)], playlist);
     }
 
     [Fact]
@@ -126,8 +129,8 @@ public class PlaylistBuilderTests
     [Fact]
     public void StartIndex_ResumesAtLastSurah_WhenEnabled()
     {
-        var playlist = new List<PlaylistItem> { new(7, 1), new(7, 2), new(7, 3) };
-        var last = new PlaybackState { ReciterId = 7, Surah = 2 };
+        var playlist = new List<PlaylistItem> { new(Q(7), 1), new(Q(7), 2), new(Q(7), 3) };
+        var last = new PlaybackState { RecitationId = Q(7).ToString(), Surah = 2 };
 
         Assert.Equal(1, PlaylistBuilder.StartIndex(playlist, new AppSettings(), last));
         Assert.Equal(0, PlaylistBuilder.StartIndex(playlist, new AppSettings { ResumeWhereLeftOff = false }, last));
@@ -140,8 +143,8 @@ public class PlaylistBuilderTests
     {
         // The order is reshuffled every launch, but "continue where it left off" still means
         // carrying on the surah that was playing.
-        var playlist = new List<PlaylistItem> { new(7, 3), new(7, 1), new(7, 2) };
-        var last = new PlaybackState { ReciterId = 7, Surah = 2 };
+        var playlist = new List<PlaylistItem> { new(Q(7), 3), new(Q(7), 1), new(Q(7), 2) };
+        var last = new PlaybackState { RecitationId = Q(7).ToString(), Surah = 2 };
 
         Assert.Equal(2, PlaylistBuilder.StartIndex(playlist, new AppSettings { Order = PlayOrder.Shuffled }, last));
     }

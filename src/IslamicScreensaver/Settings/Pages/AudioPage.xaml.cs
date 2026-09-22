@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using IslamicScreensaver.Core.Content;
 using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Player;
 
@@ -73,15 +74,16 @@ public partial class AudioPage : UserControl
             return;
         }
 
-        var reciter = _ctx.Cache.CachedReciters().FirstOrDefault();
-        var surah = reciter == 0 ? 0 : _ctx.Cache.CachedSurahsFor(reciter).OrderByDescending(s => s).FirstOrDefault();
-        if (surah == 0)
+        var cached = _ctx.Cache.CachedRecitations();
+        var recitation = cached.Count > 0 ? cached.First() : (RecitationId?)null;
+        var surah = recitation is { } r ? _ctx.Cache.CachedSurahsFor(r).OrderByDescending(s => s).FirstOrDefault() : 0;
+        if (recitation is null || surah == 0)
         {
             MessageBox.Show(Strings.Get("dialog.downloadFirstTest"), Strings.Get("dialog.nothingToPlay"), MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        _ctx.Samples.Toggle(TestKey, _ctx.Cache.AudioPath(reciter, surah), (float)_ctx.Settings.Volume);
+        _ctx.Samples.Toggle(TestKey, _ctx.Cache.AudioPath(recitation.Value, surah), (float)_ctx.Settings.Volume);
     }
 
     private void UpdateTestButton()

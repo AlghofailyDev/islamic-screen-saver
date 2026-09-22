@@ -288,6 +288,34 @@ so every other surah needs one supplied. At-Tawbah is recited without one.
 - [x] Verified on screen 2026-09-18: settings and screensaver in Arabic dark
 - [ ] Windows accent colour as an option (deferred; the green accent is the app's identity)
 
+### M8 — Reciters, recitations and our own catalog (requested 2026-09-19)
+Today "reciter" and "recording" are the same thing, which is wrong even for Quran.com: ids 1 and 2 are
+both AbdulBaset (Mujawwad / Murattal), 6 and 12 both Husary, 8 and 9 both Minshawi. MP3 Quran makes it
+plain — one reciter, several recitations differing by riwāyah (حفص عن عاصم، ورش عن نافع، قالون) and
+style (مرتل، مجود، معلم).
+
+Confirmed 2026-09-19: **MP3 Quran publishes ayah timings for 115 recitations** across 8 riwāyāt
+(`/api/v3/ayat_timing/reads` and `?surah=&read=`), and its listing carries each recitation's surah list,
+so availability needs no probing. Quran.com has 12 recitations, all Hafs, but with **word**-level timings.
+So the two sources differ in timing detail, not in whether sync is possible.
+
+- [x] **Model**: `RecitationId` (source-qualified, e.g. `qurancom:7`), `Recitation` (riwāyah, style,
+      surahs, timing level None/Verse/Word, audio URL template) and `ReciterEntry` (person → recitations)
+- [x] Settings hold recitation ids; schema v2 migrates existing values and writes itself back once
+- [x] Cache keyed by recitation (`audio/qurancom/7/…`); old folders moved and the manifest upgraded
+- [x] **The index is rebuilt from disk when it is empty but files exist** — losing the manifest must
+      never cost a re-download (recovered 132 surahs / 317 MB on the author's machine, 2026-09-22)
+- [x] Playlist, playback state and rotation work over recitations
+- [x] Verified end to end 2026-09-22: migration, index rebuild and resumed playback
+- [ ] **Our own catalog**: a repo script pulls both sources, merges reciters via a curated alias table
+      (Husary appears in both), and writes versioned JSON we host — the app reads that, with the live
+      APIs as fallback. Availability ships with it, so nothing is discovered by failing
+- [ ] Reciters and Library group by reciter, one row per recitation (as in the user's MP3 Quran screenshot)
+- [ ] MP3 Quran playback: its folder pattern + ayah timings through the same `VerseClock`; the word
+      highlight turns itself off where only verse timings exist
+- [ ] Audio stays on the sources' CDNs for now; the catalog carries the URL so moving it later is a
+      data change, not a release
+
 ### M6 — Hardening + release
 - [ ] Locked / secure-desktop behaviour tested (audio, cache access)
 - [ ] Multi-monitor mirror option
@@ -343,4 +371,7 @@ Open:
 | 2026-09-16 | The output device is pinned by endpoint id, and a missing one silently falls back to the system default | A screensaver must never be silent because a speaker was unplugged; the Settings page says when the choice is not currently connected |
 | 2026-09-14 | Downloads are per-reciter (Reciters → reciter page), separate from playback selection (Library, Surahs) | "What is on disk" and "what plays" are different questions; conflating them made downloads follow the surah selection |
 | 2026-09-14 | A 404 is data, not an error: remembered as unavailable, never retried, never aborts a batch | Quran.com lists recordings its CDN does not host; one bad file must not stop a 114-surah download |
+| 2026-09-22 | Recitations are identified by a source-qualified id (`qurancom:7`, `mp3quran:1`), not a bare number | Two sources number their recordings independently; a bare `7` would silently mean two different recitations once MP3 Quran lands. The folder name drops the colon, which Windows paths forbid |
+| 2026-09-22 | A person (reciter) owns many recordings (riwāyah × style), each with its own surah list and timing level | Husary appears under Hafs and Warsh, murattal and mujawwad; the library has to say which recording it holds |
+| 2026-09-22 | The manifest is an index, not the record: an empty one is rebuilt by scanning the audio folder | A schema change blanked the index and made 317 MB of downloaded audio invisible. The files are the truth — a surah counts once both its `.mp3` and `.timings.json` are on disk |
 | 2026-09-13 | Settings app on .NET 10's built-in Fluent theme + a few in-house controls (nav pane, toggle switch, settings card), superseding WPF UI (lepo.co) | Covers the design with one fewer dependency; the pieces WPF UI added (NavigationView, ToggleSwitch) are small to write and fully under our control |

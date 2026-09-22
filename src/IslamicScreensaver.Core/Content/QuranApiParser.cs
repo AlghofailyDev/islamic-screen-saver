@@ -68,7 +68,7 @@ public static class QuranApiParser
             .ToList();
 
         long? size = file.FileSize is { } fs && fs > 0 ? (long)fs : null;
-        return new SurahAudio(reciterId, surah, file.AudioUrl, size, timings);
+        return new SurahAudio(RecitationId.QuranCom(reciterId), surah, file.AudioUrl, size, timings);
     }
 
     public static IReadOnlyList<VerseText> ParseSurahText(string json)

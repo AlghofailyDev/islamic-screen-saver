@@ -36,9 +36,9 @@ internal static class SegmentBuilder
     {
         var istiadhah = ResolveIstiadhah();
         var basmalahFallback = ResolveBasmalahFallback();
-        var basmalahByReciter = new Dictionary<int, BasmalahClip?>();
+        var basmalahByReciter = new Dictionary<RecitationId, BasmalahClip?>();
         var segments = new List<AudioSegment>(steps.Count);
-        var missingBasmalah = new HashSet<int>();
+        var missingBasmalah = new HashSet<RecitationId>();
 
         // Audio from outside Quran.com is mastered differently, so match its level to the recitation.
         var istiadhahGain = istiadhah is null ? 1f : LevelAgainstRecitation(istiadhah, steps, cache);
@@ -53,8 +53,8 @@ internal static class SegmentBuilder
                     break;
 
                 case RecitationPart.Basmalah:
-                    if (!basmalahByReciter.TryGetValue(step.Item.ReciterId, out var basmalah))
-                        basmalahByReciter[step.Item.ReciterId] = basmalah = BasmalahSource.For(cache, step.Item.ReciterId);
+                    if (!basmalahByReciter.TryGetValue(step.Item.Recitation, out var basmalah))
+                        basmalahByReciter[step.Item.Recitation] = basmalah = BasmalahSource.For(cache, step.Item.Recitation);
 
                     if (basmalah is { } b)
                     {
@@ -63,7 +63,7 @@ internal static class SegmentBuilder
                     }
                     else if (basmalahFallback is not null)
                     {
-                        missingBasmalah.Add(step.Item.ReciterId);
+                        missingBasmalah.Add(step.Item.Recitation);
                         segments.Add(new AudioSegment(step.Part, basmalahFallback, TimeSpan.Zero, null, step.Item, step.PlaylistIndex)
                         {
                             Gain = FallbackGain(basmalahFallback, step.Item, cache, ref basmalahGain),
@@ -71,22 +71,22 @@ internal static class SegmentBuilder
                     }
                     else
                     {
-                        missingBasmalah.Add(step.Item.ReciterId);
+                        missingBasmalah.Add(step.Item.Recitation);
                     }
                     break;
 
                 case RecitationPart.Surah:
-                    var path = cache.AudioPath(step.Item.ReciterId, step.Item.Surah);
+                    var path = cache.AudioPath(step.Item.Recitation, step.Item.Surah);
                     if (File.Exists(path))
                         segments.Add(new AudioSegment(step.Part, path, TimeSpan.Zero, null, step.Item, step.PlaylistIndex));
                     else
-                        Log.Error($"Audio missing for {step.Item.ReciterId}/{step.Item.Surah} despite manifest; skipping.");
+                        Log.Error($"Audio missing for {step.Item.Recitation}/{step.Item.Surah} despite manifest; skipping.");
                     break;
             }
         }
 
         if (missingBasmalah.Count > 0)
-            Log.Info($"Reciter(s) {string.Join(", ", missingBasmalah.Order())} have no Al-Fatihah downloaded, so the {(basmalahFallback is null ? "basmalah is skipped for them" : "bundled basmalah is used instead of their own voice")}.");
+            Log.Info($"Reciter(s) {string.Join(", ", missingBasmalah.Select(r => r.ToString()).Order())} have no Al-Fatihah downloaded, so the {(basmalahFallback is null ? "basmalah is skipped for them" : "bundled basmalah is used instead of their own voice")}.");
 
         return segments;
     }
@@ -98,7 +98,7 @@ internal static class SegmentBuilder
         if (firstSurah is null)
             return 1f;
 
-        var reference = cache.AudioPath(firstSurah.Item.ReciterId, firstSurah.Item.Surah);
+        var reference = cache.AudioPath(firstSurah.Item.Recitation, firstSurah.Item.Surah);
         return File.Exists(reference)
             ? Loudness.MatchGain(path, reference, TimeSpan.FromSeconds(5))
             : 1f;
@@ -110,7 +110,7 @@ internal static class SegmentBuilder
         if (cached is { } value)
             return value;
 
-        var reference = cache.AudioPath(item.ReciterId, item.Surah);
+        var reference = cache.AudioPath(item.Recitation, item.Surah);
         var gain = File.Exists(reference) ? Loudness.MatchGain(path, reference, TimeSpan.FromSeconds(5)) : 1f;
         cached = gain;
         return gain;

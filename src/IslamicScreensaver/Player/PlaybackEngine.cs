@@ -28,7 +28,7 @@ internal sealed class PlaybackEngine : IDisposable
     private readonly AppSettings _settings;
     private readonly IReadOnlyList<PlaylistItem> _playlist;
     private readonly Dictionary<int, Chapter> _chapters;
-    private readonly Dictionary<int, string> _reciterNames;
+    private readonly Dictionary<int, string> _quranComNames;
     private readonly DispatcherTimer _tick;
     private readonly int _startIndex;
     private readonly TimeSpan _startOffset;
@@ -57,12 +57,12 @@ internal sealed class PlaybackEngine : IDisposable
         if (resumeFrom is not null && playlist.Count > 0 && playlist[_startIndex].Surah == resumeFrom.Surah && resumeFrom.VerseIndex >= 0)
         {
             var item = playlist[_startIndex];
-            var clock = new VerseClock(cache.ReadTimings(item.ReciterId, item.Surah) ?? []);
+            var clock = new VerseClock(cache.ReadTimings(item.Recitation, item.Surah) ?? []);
             _startOffset = TimeSpan.FromMilliseconds(clock.StartOf(resumeFrom.VerseIndex));
         }
 
         _chapters = (cache.ReadChapters() ?? []).ToDictionary(c => c.Number);
-        _reciterNames = (cache.ReadReciters() ?? []).ToDictionary(r => r.Id, r => r.DisplayName);
+        _quranComNames = (cache.ReadReciters() ?? []).ToDictionary(r => r.Id, r => r.DisplayName);
 
         _tick = new DispatcherTimer(DispatcherPriority.Render) { Interval = TickInterval };
         _tick.Tick += (_, _) => Poll();
@@ -83,7 +83,7 @@ internal sealed class PlaybackEngine : IDisposable
     public TimeSpan? HeardPosition => Heard()?.Position;
 
     public PlaybackState? CurrentState => Current is { } item
-        ? new PlaybackState { ReciterId = item.ReciterId, Surah = item.Surah, VerseIndex = Math.Max(-1, _shown.VerseIndex) }
+        ? new PlaybackState { RecitationId = item.Recitation.ToString(), Surah = item.Surah, VerseIndex = Math.Max(-1, _shown.VerseIndex) }
         : null;
 
     public void Start()
@@ -120,7 +120,7 @@ internal sealed class PlaybackEngine : IDisposable
 
         var preludes = _segments.Count(s => !s.IsSurah);
         Log.Info($"Program: {_segments.Count} segment(s), {preludes} prelude(s)" +
-                 (_startOffset > TimeSpan.Zero ? $", resuming {_playlist[_startIndex].ReciterId}/{_playlist[_startIndex].Surah} at {_startOffset.TotalSeconds:0.0}s (segment {resumeSegment})" : "") + ".");
+                 (_startOffset > TimeSpan.Zero ? $", resuming {_playlist[_startIndex].Recitation}/{_playlist[_startIndex].Surah} at {_startOffset.TotalSeconds:0.0}s (segment {resumeSegment})" : "") + ".");
 
         _tick.Start();
         Poll();
@@ -230,7 +230,7 @@ internal sealed class PlaybackEngine : IDisposable
             VerseChanged?.Invoke(VerseDisplay.Prelude(
                 segment.Part == RecitationPart.Istiadhah,
                 chapter.NameArabic, chapter.NameSimple, chapter.VersesCount,
-                _reciterNames.GetValueOrDefault(item.ReciterId, $"Reciter {item.ReciterId}"),
+                ReciterNameFor(item.Recitation),
                 _settings.ShowTranslation));
             WordChanged?.Invoke(0);
             VerseProgress?.Invoke(0);
@@ -238,18 +238,18 @@ internal sealed class PlaybackEngine : IDisposable
         }
 
         _index = segment.PlaylistIndex;
-        _clock = new VerseClock(_cache.ReadTimings(item.ReciterId, item.Surah) ?? []);
+        _clock = new VerseClock(_cache.ReadTimings(item.Recitation, item.Surah) ?? []);
         _verses = _cache.ReadSurahText(item.Surah) ?? [];
         _translation = _settings.ShowTranslation ? _cache.ReadSurahTranslation(_settings.TranslationId, item.Surah) : null;
         _shown = new VerseClock.Position(int.MinValue, 0);
-        Log.Info($"Playing {item.ReciterId}/{item.Surah} ({ChapterFor(item.Surah).NameSimple}).");
+        Log.Info($"Playing {item.Recitation}/{item.Surah} ({ChapterFor(item.Surah).NameSimple}).");
     }
 
     private VerseDisplay BuildDisplay(int verseIndex)
     {
         var item = _playlist[_index];
         var chapter = ChapterFor(item.Surah);
-        var reciter = _reciterNames.GetValueOrDefault(item.ReciterId, $"Reciter {item.ReciterId}");
+        var reciter = ReciterNameFor(item.Recitation);
 
         if (verseIndex < 0 || verseIndex >= _clock.VerseCount)
         {
@@ -266,6 +266,15 @@ internal sealed class PlaybackEngine : IDisposable
         return new VerseDisplay(chapter.NameArabic, chapter.NameSimple, key.Ayah, chapter.VersesCount,
             arabic, words, translation, reciter, IsBismillah: false);
     }
+
+    /// <summary>
+    /// The name shown on screen. Until the published catalog lands, only Quran.com names are cached,
+    /// so anything else falls back to its id rather than showing nothing.
+    /// </summary>
+    private string ReciterNameFor(RecitationId recitation) =>
+        recitation.Source == RecitationSource.QuranCom && _quranComNames.TryGetValue(recitation.Number, out var name)
+            ? name
+            : recitation.ToString();
 
     private Chapter ChapterFor(int surah) =>
         _chapters.GetValueOrDefault(surah) ?? new Chapter(surah, string.Empty, $"Surah {surah}", string.Empty, _clock.VerseCount, surah is not (1 or 9));

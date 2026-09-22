@@ -5,7 +5,9 @@ namespace IslamicScreensaver.Core.Playlist;
 /// <summary>Where playback was when the screensaver last exited, so the next activation carries on.</summary>
 public sealed class PlaybackState
 {
-    public int ReciterId { get; set; }
+    /// <summary>Source-qualified, e.g. <c>qurancom:7</c>.</summary>
+    public string RecitationId { get; set; } = string.Empty;
+
     public int Surah { get; set; }
 
     /// <summary>Zero-based index into the surah's verse timings; -1 means before the first verse.</summary>

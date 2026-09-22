@@ -7,7 +7,7 @@ namespace IslamicScreensaver.Core.Content;
 public static class StarterContent
 {
     /// <summary>Mishari Rashid al-ʿAfasy, murattal — Quran.com recitation id 7.</summary>
-    public const int ReciterId = 7;
+    public static RecitationId Recitation { get; } = RecitationId.QuranCom(7);
 
     /// <summary>Saheeh International — Quran.com translation resource id 20.</summary>
     public const int TranslationId = 20;
@@ -26,7 +26,7 @@ public static class StarterContent
             await downloader.EnsureSurahTranslationAsync(TranslationId, surah, ct);
             try
             {
-                await downloader.EnsureSurahAudioAsync(ReciterId, surah, progress, ct);
+                await downloader.EnsureSurahAudioAsync(Recitation, surah, progress, ct);
             }
             catch (ContentUnavailableException ex)
             {

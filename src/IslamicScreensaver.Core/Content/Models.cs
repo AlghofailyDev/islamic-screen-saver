@@ -56,7 +56,7 @@ public sealed record WordSegment(int WordPosition, int FromMs, int ToMs);
 public sealed record VerseTiming(VerseKey Key, int FromMs, int ToMs, IReadOnlyList<WordSegment> Words);
 
 /// <summary>Where a surah's recording lives and how its verses line up with the audio.</summary>
-public sealed record SurahAudio(int ReciterId, int Surah, string AudioUrl, long? FileSize, IReadOnlyList<VerseTiming> Timings);
+public sealed record SurahAudio(RecitationId Recitation, int Surah, string AudioUrl, long? FileSize, IReadOnlyList<VerseTiming> Timings);
 
 public sealed record TranslationResource(int Id, string Name, string AuthorName, string LanguageName);
 

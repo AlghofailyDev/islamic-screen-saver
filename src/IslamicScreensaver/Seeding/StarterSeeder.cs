@@ -33,7 +33,7 @@ internal static class StarterSeeder
             var downloader = new ContentDownloader(new QuranApiClient(new HttpClient()), new HttpClient(), cache);
 
             Say($"Fetching starter content into {cache.RootDirectory}");
-            Say($"  reciter {StarterContent.ReciterId}, {StarterContent.Surahs.Count} surahs, translation {StarterContent.TranslationId}");
+            Say($"  reciter {StarterContent.Recitation}, {StarterContent.Surahs.Count} surahs, translation {StarterContent.TranslationId}");
 
             string? lastItem = null;
             var progress = new Progress<DownloadProgress>(p =>
@@ -53,7 +53,7 @@ internal static class StarterSeeder
                 Say($"  skipped: {ex.Message}");
             }
 
-            Say($"Done. {cache.CachedSurahsFor(StarterContent.ReciterId).Count} surahs ready for reciter {StarterContent.ReciterId}.");
+            Say($"Done. {cache.CachedSurahsFor(StarterContent.Recitation).Count} surahs ready for reciter {StarterContent.Recitation}.");
             return 0;
         }
         catch (Exception ex)

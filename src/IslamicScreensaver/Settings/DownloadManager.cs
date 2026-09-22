@@ -54,14 +54,14 @@ internal sealed class DownloadManager
     /// Fetch Al-Fatihah too when it is missing: its first verse is the basmalah, which is played
     /// before other surahs in this reciter's own voice. It is under a megabyte.
     /// </param>
-    public void EnqueueReciter(int reciterId, IReadOnlyList<int> surahs, bool alsoAlFatihah = false)
+    public void EnqueueReciter(RecitationId recitation, IReadOnlyList<int> surahs, bool alsoAlFatihah = false)
     {
         var wanted = surahs.ToList();
         if (alsoAlFatihah && !wanted.Contains(RecitationProgram.AlFatihah))
             wanted.Insert(0, RecitationProgram.AlFatihah);
 
-        var pending = wanted.Where(s => !_cache.HasSurahAudio(reciterId, s) && !_cache.IsUnavailable(reciterId, s)).ToList();
-        Enqueue($"reciter:{reciterId}", async (progress, ct) =>
+        var pending = wanted.Where(s => !_cache.HasSurahAudio(recitation, s) && !_cache.IsUnavailable(recitation, s)).ToList();
+        Enqueue($"reciter:{recitation}", async (progress, ct) =>
         {
             var unavailable = 0;
             for (var i = 0; i < pending.Count; i++)
@@ -74,7 +74,7 @@ internal sealed class DownloadManager
                 await _downloader.EnsureSurahTextAsync(surah, ct);
                 try
                 {
-                    await _downloader.EnsureSurahAudioAsync(reciterId, surah, itemProgress, ct);
+                    await _downloader.EnsureSurahAudioAsync(recitation, surah, itemProgress, ct);
                 }
                 catch (ContentUnavailableException)
                 {
@@ -84,7 +84,7 @@ internal sealed class DownloadManager
             }
             progress.Report(new JobProgress(pending.Count, pending.Count, null, null));
             if (unavailable > 0)
-                Report($"reciter:{reciterId}", $"{unavailable} of {pending.Count} surah{(unavailable == 1 ? " is" : "s are")} not available from this reciter — Quran.com lists them but does not host the audio. Everything else was downloaded.");
+                Report($"reciter:{recitation}", $"{unavailable} of {pending.Count} surah{(unavailable == 1 ? " is" : "s are")} not available from this reciter — Quran.com lists them but does not host the audio. Everything else was downloaded.");
         });
     }
 

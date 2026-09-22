@@ -52,7 +52,7 @@ public partial class RecitersPage : UserControl
     private void Rebuild()
     {
         _rows.Clear();
-        var selected = _ctx.Settings.ReciterIds;
+        var selected = _ctx.SelectedQuranComIds;
         foreach (var reciter in _ctx.Reciters)
             _rows.Add(new ReciterRow(_ctx, reciter, selected.Contains(reciter.Id), OnSelectionChanged, Open));
 
@@ -91,7 +91,7 @@ public partial class RecitersPage : UserControl
 
     private void OnSelectionChanged()
     {
-        _ctx.Settings.ReciterIds = _rows.Where(r => r.IsSelected).Select(r => r.Id).ToList();
+        _ctx.SetSelectedQuranComIds(_rows.Where(r => r.IsSelected).Select(r => r.Id));
         _ctx.Changed();
     }
 
@@ -224,7 +224,7 @@ internal sealed class ReciterRow : ObservableObject
         if (IsDownloading)
             return;
 
-        var have = _ctx.Cache.CachedSurahsFor(Id).Count;
+        var have = _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(Id)).Count;
         IsComplete = have == 114;
         StatusText = have == 0 ? Strings.Get("reciters.nothingDownloaded")
             : have == 114 ? Strings.Get("reciters.allSurahs")
@@ -252,7 +252,7 @@ internal sealed class ReciterRow : ObservableObject
 
     private void Play()
     {
-        var cached = _ctx.Cache.CachedSurahsFor(Id);
+        var cached = _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(Id));
         if (cached.Count == 0)
         {
             MessageBox.Show(Strings.Get("dialog.downloadFirst"), Strings.Get("dialog.nothingDownloadedYet"), MessageBoxButton.OK, MessageBoxImage.Information);
@@ -260,6 +260,6 @@ internal sealed class ReciterRow : ObservableObject
         }
         // Prefer a short surah so the sample is representative but brief.
         var surah = cached.OrderByDescending(s => s).First();
-        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(Id, surah), (float)_ctx.Settings.Volume);
+        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(SettingsContext.Rec(Id), surah), (float)_ctx.Settings.Volume);
     }
 }

@@ -52,8 +52,8 @@ public partial class ReciterDetailPage : UserControl
 
     private void RefreshStates()
     {
-        var cached = new HashSet<int>(_ctx.Cache.CachedSurahsFor(_reciter.Id));
-        var unavailable = new HashSet<int>(_ctx.Cache.UnavailableSurahsFor(_reciter.Id));
+        var cached = new HashSet<int>(_ctx.Cache.CachedSurahsFor(SettingsContext.Rec(_reciter.Id)));
+        var unavailable = new HashSet<int>(_ctx.Cache.UnavailableSurahsFor(SettingsContext.Rec(_reciter.Id)));
         foreach (var tile in _tiles)
         {
             tile.SetState(cached.Contains(tile.Number) ? SurahState.Downloaded
@@ -117,7 +117,7 @@ public partial class ReciterDetailPage : UserControl
         }
 
         // Mark finished ones as we go so the grid fills in live.
-        var cached = new HashSet<int>(_ctx.Cache.CachedSurahsFor(_reciter.Id));
+        var cached = new HashSet<int>(_ctx.Cache.CachedSurahsFor(SettingsContext.Rec(_reciter.Id)));
         foreach (var tile in _tiles)
         {
             if (cached.Contains(tile.Number))
@@ -162,7 +162,7 @@ public partial class ReciterDetailPage : UserControl
             return;
 
         // Al-Fatihah always comes along: its first verse is this reciter's basmalah.
-        _ctx.Downloads.EnqueueReciter(_reciter.Id, surahs, alsoAlFatihah: true);
+        _ctx.Downloads.EnqueueReciter(SettingsContext.Rec(_reciter.Id), surahs, alsoAlFatihah: true);
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)
@@ -179,7 +179,7 @@ public partial class ReciterDetailPage : UserControl
 
         _ctx.Samples.Stop();
         foreach (var surah in surahs)
-            _ctx.Cache.DeleteSurahAudio(_reciter.Id, surah);
+            _ctx.Cache.DeleteSurahAudio(SettingsContext.Rec(_reciter.Id), surah);
 
         SetAll(false);
         RefreshStates();
@@ -211,14 +211,14 @@ public partial class ReciterDetailPage : UserControl
 
     private void Listen_Click(object sender, RoutedEventArgs e)
     {
-        var cached = _ctx.Cache.CachedSurahsFor(_reciter.Id);
+        var cached = _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(_reciter.Id));
         if (cached.Count == 0)
         {
             MessageBox.Show(Strings.Get("dialog.downloadFirst"), Strings.Get("dialog.nothingDownloadedYet"), MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         var surah = cached.OrderByDescending(s => s).First();
-        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(_reciter.Id, surah), (float)_ctx.Settings.Volume);
+        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(SettingsContext.Rec(_reciter.Id), surah), (float)_ctx.Settings.Volume);
     }
 
     private void UpdateListen() =>

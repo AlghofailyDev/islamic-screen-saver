@@ -13,16 +13,16 @@ public sealed record BasmalahClip(string Path, TimeSpan Start, TimeSpan Duration
 public static class BasmalahSource
 {
     /// <summary>The clip, or null when this reciter's Al-Fatihah is missing or carries no timings.</summary>
-    public static BasmalahClip? For(ContentCache cache, int reciterId)
+    public static BasmalahClip? For(ContentCache cache, RecitationId recitation)
     {
-        if (!cache.HasSurahAudio(reciterId, RecitationProgram.AlFatihah))
+        if (!cache.HasSurahAudio(recitation, RecitationProgram.AlFatihah))
             return null;
 
-        var path = cache.AudioPath(reciterId, RecitationProgram.AlFatihah);
+        var path = cache.AudioPath(recitation, RecitationProgram.AlFatihah);
         if (!File.Exists(path))
             return null;
 
-        var timings = cache.ReadTimings(reciterId, RecitationProgram.AlFatihah);
+        var timings = cache.ReadTimings(recitation, RecitationProgram.AlFatihah);
         if (timings is null || timings.Count == 0)
             return null;
 
@@ -35,12 +35,12 @@ public static class BasmalahSource
         return new BasmalahClip(path, TimeSpan.FromMilliseconds(start), TimeSpan.FromMilliseconds(end - start));
     }
 
-    public static bool IsAvailable(ContentCache cache, int reciterId) => For(cache, reciterId) is not null;
+    public static bool IsAvailable(ContentCache cache, RecitationId recitation) => For(cache, recitation) is not null;
 
     /// <summary>
     /// Reciters that would play surahs but cannot supply a basmalah, so the settings app can offer to
     /// fetch their Al-Fatihah instead of letting the prelude quietly not happen.
     /// </summary>
-    public static IReadOnlyList<int> RecitersMissingIt(ContentCache cache, IEnumerable<int> reciterIds) =>
-        reciterIds.Distinct().Where(id => !IsAvailable(cache, id)).Order().ToList();
+    public static IReadOnlyList<RecitationId> RecitationsMissingIt(ContentCache cache, IEnumerable<RecitationId> recitations) =>
+        recitations.Distinct().Where(id => !IsAvailable(cache, id)).ToList();
 }

@@ -1,10 +1,13 @@
+using IslamicScreensaver.Core.Content;
 using IslamicScreensaver.Core.Playlist;
 
 namespace IslamicScreensaver.Tests.Playlist;
 
+using static TestIds;
+
 public class RecitationProgramTests
 {
-    private static readonly List<PlaylistItem> Playlist = [new(7, 2), new(7, 9), new(7, 1), new(7, 112)];
+    private static readonly List<PlaylistItem> Playlist = [new(Q(7), 2), new(Q(7), 9), new(Q(7), 1), new(Q(7), 112)];
 
     private static (RecitationPart Part, int Surah)[] Parts(IReadOnlyList<RecitationStep> steps) =>
         steps.Select(s => (s.Part, s.Item.Surah)).ToArray();

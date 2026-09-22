@@ -23,12 +23,12 @@ public sealed class ContentDownloaderTests : IDisposable
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
         var reports = new List<DownloadProgress>();
 
-        await downloader.EnsureSurahAudioAsync(7, 112, new SyncProgress(reports));
+        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112, new SyncProgress(reports));
 
-        Assert.True(cache.HasSurahAudio(7, 112));
-        Assert.Equal(_mp3, await File.ReadAllBytesAsync(cache.AudioPath(7, 112)));
-        Assert.False(File.Exists(cache.AudioPath(7, 112) + ".part"));
-        Assert.Single(cache.ReadTimings(7, 112)!);
+        Assert.True(cache.HasSurahAudio(RecitationId.QuranCom(7), 112));
+        Assert.Equal(_mp3, await File.ReadAllBytesAsync(cache.AudioPath(RecitationId.QuranCom(7), 112)));
+        Assert.False(File.Exists(cache.AudioPath(RecitationId.QuranCom(7), 112) + ".part"));
+        Assert.Single(cache.ReadTimings(RecitationId.QuranCom(7), 112)!);
         Assert.Equal(_mp3.Length, reports[^1].BytesReceived);
         Assert.Equal(1.0, reports[^1].Fraction);
     }
@@ -41,15 +41,15 @@ public sealed class ContentDownloaderTests : IDisposable
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
         // Simulate an earlier attempt that died after 4000 bytes.
-        var part = cache.AudioPath(7, 112) + ".part";
+        var part = cache.AudioPath(RecitationId.QuranCom(7), 112) + ".part";
         Directory.CreateDirectory(Path.GetDirectoryName(part)!);
         await File.WriteAllBytesAsync(part, _mp3[..4000]);
 
-        await downloader.EnsureSurahAudioAsync(7, 112);
+        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112);
 
         Assert.Equal(4000, server.LastRangeFrom);
-        Assert.Equal(_mp3, await File.ReadAllBytesAsync(cache.AudioPath(7, 112)));
-        Assert.True(cache.HasSurahAudio(7, 112));
+        Assert.Equal(_mp3, await File.ReadAllBytesAsync(cache.AudioPath(RecitationId.QuranCom(7), 112)));
+        Assert.True(cache.HasSurahAudio(RecitationId.QuranCom(7), 112));
     }
 
     [Fact]
@@ -59,10 +59,10 @@ public sealed class ContentDownloaderTests : IDisposable
         var server = new FakeFileServer(_mp3) { FailFirstRequests = 1 };
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
-        await downloader.EnsureSurahAudioAsync(7, 112);
+        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112);
 
         Assert.Equal(2, server.Requests);
-        Assert.True(cache.HasSurahAudio(7, 112));
+        Assert.True(cache.HasSurahAudio(RecitationId.QuranCom(7), 112));
     }
 
     [Fact]
@@ -72,8 +72,8 @@ public sealed class ContentDownloaderTests : IDisposable
         var server = new FakeFileServer(_mp3);
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
-        await downloader.EnsureSurahAudioAsync(7, 112);
-        await downloader.EnsureSurahAudioAsync(7, 112);
+        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112);
+        await downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112);
 
         Assert.Equal(1, server.Requests);
     }
@@ -85,24 +85,24 @@ public sealed class ContentDownloaderTests : IDisposable
         var server = new FakeFileServer(_mp3) { NotFound = true };
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
-        await Assert.ThrowsAsync<ContentUnavailableException>(() => downloader.EnsureSurahAudioAsync(8, 1));
+        await Assert.ThrowsAsync<ContentUnavailableException>(() => downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(8), 1));
 
         Assert.Equal(1, server.Requests);                  // a 404 is final, so no retries
-        Assert.True(cache.IsUnavailable(8, 1));
-        Assert.False(cache.HasSurahAudio(8, 1));
-        Assert.Equal([1], cache.UnavailableSurahsFor(8));
+        Assert.True(cache.IsUnavailable(RecitationId.QuranCom(8), 1));
+        Assert.False(cache.HasSurahAudio(RecitationId.QuranCom(8), 1));
+        Assert.Equal([1], cache.UnavailableSurahsFor(RecitationId.QuranCom(8)));
 
         // And it is remembered across instances, so the UI can grey it out.
-        Assert.True(new ContentCache(_root).IsUnavailable(8, 1));
+        Assert.True(new ContentCache(_root).IsUnavailable(RecitationId.QuranCom(8), 1));
     }
 
     [Fact]
     public async Task ClearUnavailable_AllowsAnotherAttempt()
     {
         var cache = new ContentCache(_root);
-        cache.MarkUnavailable(8, 1);
-        cache.ClearUnavailable(8);
-        Assert.False(cache.IsUnavailable(8, 1));
+        cache.MarkUnavailable(RecitationId.QuranCom(8), 1);
+        cache.ClearUnavailable(RecitationId.QuranCom(8));
+        Assert.False(cache.IsUnavailable(RecitationId.QuranCom(8), 1));
     }
 
     [Fact]
@@ -113,10 +113,10 @@ public sealed class ContentDownloaderTests : IDisposable
         var downloader = new ContentDownloader(new FakeApi(_mp3.Length), new HttpClient(server), cache) { RetryBaseDelay = TimeSpan.Zero };
 
         // Every attempt is truncated, so the downloader gives up after its retries.
-        await Assert.ThrowsAsync<IOException>(() => downloader.EnsureSurahAudioAsync(7, 112));
+        await Assert.ThrowsAsync<IOException>(() => downloader.EnsureSurahAudioAsync(RecitationId.QuranCom(7), 112));
 
-        Assert.False(cache.HasSurahAudio(7, 112));
-        Assert.False(File.Exists(cache.AudioPath(7, 112)));
+        Assert.False(cache.HasSurahAudio(RecitationId.QuranCom(7), 112));
+        Assert.False(File.Exists(cache.AudioPath(RecitationId.QuranCom(7), 112)));
     }
 
     private sealed class SyncProgress(List<DownloadProgress> sink) : IProgress<DownloadProgress>
@@ -127,7 +127,7 @@ public sealed class ContentDownloaderTests : IDisposable
     private sealed class FakeApi(long fileSize) : IQuranApi
     {
         public Task<SurahAudio> GetSurahAudioAsync(int reciterId, int surah, CancellationToken ct = default) =>
-            Task.FromResult(new SurahAudio(reciterId, surah, "https://files.test/audio.mp3", fileSize,
+            Task.FromResult(new SurahAudio(RecitationId.QuranCom(reciterId), surah, "https://files.test/audio.mp3", fileSize,
                 [new VerseTiming(new VerseKey(surah, 1), 0, 1000, [])]));
 
         public Task<IReadOnlyList<Reciter>> GetRecitersAsync(CancellationToken ct = default) => throw new NotSupportedException();

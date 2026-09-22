@@ -43,9 +43,9 @@ public partial class LibraryPage : UserControl
     private void Rebuild()
     {
         _rows.Clear();
-        var selected = _ctx.Settings.ReciterIds;
+        var selected = _ctx.SelectedQuranComIds;
 
-        foreach (var reciterId in _ctx.Cache.CachedReciters().Order())
+        foreach (var reciterId in _ctx.Cache.CachedRecitations().Where(r => r.Source == RecitationSource.QuranCom).Select(r => r.Number).Order())
         {
             var reciter = _ctx.Reciters.FirstOrDefault(r => r.Id == reciterId)
                           ?? new Reciter(reciterId, $"Reciter {reciterId}", null);
@@ -77,7 +77,7 @@ public partial class LibraryPage : UserControl
 
     private void OnSelectionChanged()
     {
-        _ctx.Settings.ReciterIds = _rows.Where(r => r.IsSelected).Select(r => r.Id).ToList();
+        _ctx.SetSelectedQuranComIds(_rows.Where(r => r.IsSelected).Select(r => r.Id));
         _ctx.Changed();
     }
 
@@ -96,10 +96,10 @@ public partial class LibraryPage : UserControl
             return;
 
         _ctx.Samples.Stop();
-        foreach (var surah in _ctx.Cache.CachedSurahsFor(row.Id))
-            _ctx.Cache.DeleteSurahAudio(row.Id, surah);
+        foreach (var surah in _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(row.Id)))
+            _ctx.Cache.DeleteSurahAudio(SettingsContext.Rec(row.Id), surah);
 
-        if (_ctx.Settings.ReciterIds.Remove(row.Id))
+        if (_ctx.SelectedQuranComIds.Contains(row.Id))
             _ctx.Changed();
         Rebuild();
     }
@@ -248,7 +248,7 @@ internal sealed class LibraryRow : ObservableObject
         AvatarForeground = (Brush)new BrushConverter().ConvertFromString(palette.Fg)!;
         Initials = string.Concat(reciter.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
 
-        var surahs = ctx.Cache.CachedSurahsFor(reciter.Id);
+        var surahs = ctx.Cache.CachedSurahsFor(SettingsContext.Rec(reciter.Id));
         SurahCount = surahs.Count;
         var style = string.IsNullOrEmpty(reciter.Style) ? "" : $"{reciter.Style}  ·  ";
         Detail = style + Strings.Get("library.surahsOf", SurahCount);
@@ -294,7 +294,7 @@ internal sealed class LibraryRow : ObservableObject
         {
             try
             {
-                var file = new FileInfo(ctx.Cache.AudioPath(reciterId, surah));
+                var file = new FileInfo(ctx.Cache.AudioPath(SettingsContext.Rec(reciterId), surah));
                 if (file.Exists)
                     total += file.Length;
             }
@@ -308,10 +308,10 @@ internal sealed class LibraryRow : ObservableObject
 
     private void Play()
     {
-        var cached = _ctx.Cache.CachedSurahsFor(Id);
+        var cached = _ctx.Cache.CachedSurahsFor(SettingsContext.Rec(Id));
         if (cached.Count == 0)
             return;
         var surah = cached.OrderByDescending(s => s).First();
-        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(Id, surah), (float)_ctx.Settings.Volume);
+        _ctx.Samples.Toggle(JobKey, _ctx.Cache.AudioPath(SettingsContext.Rec(Id), surah), (float)_ctx.Settings.Volume);
     }
 }

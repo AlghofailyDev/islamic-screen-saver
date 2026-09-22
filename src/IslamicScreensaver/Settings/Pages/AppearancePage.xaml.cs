@@ -96,7 +96,7 @@ public partial class AppearancePage : UserControl
         $"{_ctx.Settings.Background.Kind}|{_ctx.Settings.Background.BundledName}|{_ctx.Settings.Background.FilePath}";
 
     private string VerseSignature() =>
-        $"{_ctx.Settings.ShowTranslation}|{_ctx.Settings.TranslationId}|{_ctx.Settings.ReciterIds.FirstOrDefault()}|{_ctx.Settings.Panel.WordHighlight}";
+        $"{_ctx.Settings.ShowTranslation}|{_ctx.Settings.TranslationId}|{_ctx.SelectedQuranComIds.FirstOrDefault()}|{_ctx.Settings.Panel.WordHighlight}";
 
     private void RefreshVerse()
     {
@@ -145,7 +145,7 @@ public partial class AppearancePage : UserControl
             text?.TextUthmani ?? "ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَـٰلَمِينَ",
             text?.Words ?? ["ٱلْحَمْدُ", "لِلَّهِ", "رَبِّ", "ٱلْعَـٰلَمِينَ"],
             translation,
-            _ctx.ReciterName(_ctx.Settings.ReciterIds.FirstOrDefault(7)),
+            _ctx.ReciterName(_ctx.SelectedQuranComIds.FirstOrDefault(7)),
             IsBismillah: false);
     }
 

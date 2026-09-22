@@ -53,12 +53,31 @@ public sealed class PanelSettings
 /// <summary>Everything the user can change. Persisted as JSON; bump <see cref="SchemaVersion"/> when the shape changes.</summary>
 public sealed class AppSettings
 {
-    public const int CurrentSchemaVersion = 1;
+    /// <summary>2 introduced source-qualified recitation ids in place of bare Quran.com reciter numbers.</summary>
+    public const int CurrentSchemaVersion = 2;
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
-    /// <summary>Quran.com recitation ids, in rotation order.</summary>
-    public List<int> ReciterIds { get; set; } = [7];
+    /// <summary>
+    /// Recitations to play, in rotation order, as source-qualified ids (<c>qurancom:7</c>).
+    /// Schema 1 held bare Quran.com numbers; <see cref="SettingsStore"/> migrates those.
+    /// </summary>
+    public List<string> RecitationIds { get; set; } = [Content.RecitationId.QuranCom(7).ToString()];
+
+    /// <summary>Schema 1 only: bare Quran.com reciter numbers, read once and then migrated away.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("ReciterIds")]
+    public List<int>? LegacyReciterIds { get; set; }
+
+    /// <summary>Set when loading stepped an older file forward, so the result is written back once.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool WasMigrated { get; set; }
+
+    /// <summary>The recitations to play, parsed. Unparsable entries are dropped rather than crashing playback.</summary>
+    public IReadOnlyList<Content.RecitationId> Recitations =>
+        RecitationIds.Select(id => Content.RecitationId.TryParse(id, out var parsed) ? parsed : (Content.RecitationId?)null)
+                     .Where(id => id is not null)
+                     .Select(id => id!.Value)
+                     .ToList();
 
     /// <summary>With several reciters: take turns surah by surah. Otherwise the first is used.</summary>
     public bool RotateReciters { get; set; } = true;
@@ -128,7 +147,11 @@ public sealed class AppSettings
         Panel.Blur = double.IsFinite(Panel.Blur) ? Math.Clamp(Panel.Blur, 0, 60) : 24;
         Panel.Grain = double.IsFinite(Panel.Grain) ? Math.Clamp(Panel.Grain, 0, 1) : 0.35;
         Panel.TintOpacity = double.IsFinite(Panel.TintOpacity) ? Math.Clamp(Panel.TintOpacity, 0, 1) : 0.42;
-        ReciterIds = ReciterIds.Where(id => id > 0).Distinct().ToList();
+        RecitationIds = RecitationIds
+            .Where(id => Content.RecitationId.TryParse(id, out _))
+            .Select(id => Content.RecitationId.Parse(id).ToString())   // canonical spelling
+            .Distinct()
+            .ToList();
         if (string.IsNullOrWhiteSpace(CacheDirectory))
             CacheDirectory = null;
         if (string.IsNullOrWhiteSpace(OutputDeviceId))

@@ -72,7 +72,7 @@ internal sealed class ScreensaverSession
             return;
         }
 
-        var playlist = PlaylistBuilder.Build(_settings, cache.CachedSurahsFor, cache.CachedReciters());
+        var playlist = PlaylistBuilder.Build(_settings, cache.CachedSurahsFor, cache.CachedRecitations());
 
         if (playlist.Count == 0)
         {
@@ -84,7 +84,7 @@ internal sealed class ScreensaverSession
 
         var lastState = PlaybackState.Load();
         var startIndex = PlaylistBuilder.StartIndex(playlist, _settings, lastState);
-        Log.Info($"Playlist: {playlist.Count} surah(s), starting at #{startIndex} ({playlist[startIndex].ReciterId}/{playlist[startIndex].Surah}).");
+        Log.Info($"Playlist: {playlist.Count} surah(s), starting at #{startIndex} ({playlist[startIndex].Recitation}/{playlist[startIndex].Surah}).");
 
         var windows = WindowsWithPanels();
         _engine = new PlaybackEngine(cache, _settings, playlist, startIndex, lastState);
@@ -138,7 +138,7 @@ internal sealed class ScreensaverSession
         var heard = _engine?.HeardPosition;
         state?.Save();
         _engine?.Dispose();
-        Log.Info($"Screensaver exiting ({reason}) after {_clock.Elapsed:mm\\:ss\\.fff}{(state is null ? "" : $" at {state.ReciterId}/{state.Surah} verse index {state.VerseIndex}, audio position {heard?.TotalSeconds:0.00}s")}.");
+        Log.Info($"Screensaver exiting ({reason}) after {_clock.Elapsed:mm\\:ss\\.fff}{(state is null ? "" : $" at {state.RecitationId}/{state.Surah} verse index {state.VerseIndex}, audio position {heard?.TotalSeconds:0.00}s")}.");
         Application.Current.Shutdown();
     }
 }

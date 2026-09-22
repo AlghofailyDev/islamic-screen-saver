@@ -31,6 +31,14 @@ internal sealed class SettingsContext
 
         _saveTimer = new DispatcherTimer { Interval = SaveDelay };
         _saveTimer.Tick += (_, _) => Flush();
+
+        // An upgraded file is written back straight away, so the old shape does not linger.
+        if (Settings.WasMigrated)
+        {
+            Settings.WasMigrated = false;
+            _dirty = true;
+            Flush();
+        }
     }
 
     public AppSettings Settings { get; }
@@ -129,6 +137,23 @@ internal sealed class SettingsContext
     public IReadOnlyList<int> EffectiveSurahs => Settings.SelectedSurahs ?? Core.Playlist.PlaylistBuilder.AllSurahs;
 
     public string ReciterName(int id) => Reciters.FirstOrDefault(r => r.Id == id)?.DisplayName ?? $"Reciter {id}";
+
+    // --- Quran.com bridge -------------------------------------------------------------------
+    // The catalog UI still lists Quran.com reciters by their bare number. Until it is regrouped by
+    // reciter/recitation (M8 step 3), these translate at the boundary so ids stay qualified underneath.
+
+    public static RecitationId Rec(int quranComId) => RecitationId.QuranCom(quranComId);
+
+    /// <summary>The selected Quran.com recitations, as bare numbers.</summary>
+    public IReadOnlyList<int> SelectedQuranComIds =>
+        Settings.Recitations.Where(r => r.Source == RecitationSource.QuranCom).Select(r => r.Number).ToList();
+
+    /// <summary>Replaces the Quran.com part of the selection, leaving other sources untouched.</summary>
+    public void SetSelectedQuranComIds(IEnumerable<int> ids)
+    {
+        var others = Settings.Recitations.Where(r => r.Source != RecitationSource.QuranCom).Select(r => r.ToString());
+        Settings.RecitationIds = ids.Select(id => Rec(id).ToString()).Concat(others).ToList();
+    }
 
     public Chapter? Chapter(int number) => Chapters.FirstOrDefault(c => c.Number == number);
 }
