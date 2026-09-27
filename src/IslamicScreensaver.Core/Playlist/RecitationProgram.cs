@@ -72,12 +72,21 @@ public static class RecitationProgram
             steps.Add(new RecitationStep(RecitationPart.Surah, item, index));
         }
 
+        // The first surah of a resumed session is already under way, so its basmalah was left out
+        // above. The program loops, though, and every lap after the first starts that surah from its
+        // beginning — so the basmalah is put back at the very end, where it lands immediately before
+        // the loop returns to it. Without this the surah we resumed into opens bare on every lap.
+        var resumed = playlist[startIndex];
+        if (startsMidSurah && NeedsBasmalah(resumed.Surah) && !(audioHasBasmalah?.Invoke(resumed) ?? false))
+            steps.Add(new RecitationStep(RecitationPart.Basmalah, resumed, startIndex));
+
         return steps;
     }
 
     /// <summary>
     /// Where playback returns to when the program ends. The isti'ādhah opens a session and is not
-    /// repeated; a second lap through the surahs starts at the first basmalah.
+    /// repeated; a second lap through the surahs starts at the first basmalah — or, after a resumed
+    /// first pass, at the surah whose basmalah <see cref="Build"/> appended to the end.
     /// </summary>
     public static int LoopStart(IReadOnlyList<RecitationStep> steps) =>
         steps.Count > 1 && steps[0].Part == RecitationPart.Istiadhah ? 1 : 0;

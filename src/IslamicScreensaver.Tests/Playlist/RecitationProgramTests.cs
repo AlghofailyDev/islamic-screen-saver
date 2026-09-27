@@ -85,6 +85,81 @@ public class RecitationProgramTests
             (RecitationPart.Basmalah, 2), (RecitationPart.Surah, 2),    // wraps round and behaves normally
             (RecitationPart.Surah, 9),
             (RecitationPart.Surah, 1),
+            (RecitationPart.Basmalah, 112),                             // waiting for the loop to come back round
+        ], Parts(steps));
+    }
+
+    [Fact]
+    public void TheSecondLapOpensTheResumedSurahWithItsBasmalah()
+    {
+        // The first pass joins a surah part-way, so its basmalah is left out. Every lap after that
+        // starts the same surah from the beginning and must open it properly — the bug was that the
+        // loop landed straight on the surah, so Al-Kawthar came round bare every time.
+        List<PlaylistItem> playlist = [new(Q(2), 108), new(Q(2), 110), new(Q(2), 112)];
+
+        var steps = RecitationProgram.Build(playlist, startIndex: 0, startsMidSurah: true);
+        var loop = RecitationProgram.LoopStart(steps);
+
+        // Two laps from the loop point, as a listener would hear them.
+        var heard = Enumerable.Range(0, (steps.Count - loop) * 2)
+            .Select(i => steps[loop + i % (steps.Count - loop)])
+            .Select(s => (s.Part, s.Item.Surah))
+            .ToArray();
+
+        Assert.Equal(
+        [
+            (RecitationPart.Surah, 108),                                 // lap 1: resumed part-way
+            (RecitationPart.Basmalah, 110), (RecitationPart.Surah, 110),
+            (RecitationPart.Basmalah, 112), (RecitationPart.Surah, 112),
+            (RecitationPart.Basmalah, 108),                              // and here it is, before the wrap
+            (RecitationPart.Surah, 108),                                 // lap 2: no longer bare
+            (RecitationPart.Basmalah, 110), (RecitationPart.Surah, 110),
+            (RecitationPart.Basmalah, 112), (RecitationPart.Surah, 112),
+            (RecitationPart.Basmalah, 108),
+        ], heard);
+    }
+
+    [Fact]
+    public void ASingleResumedSurahStillOpensProperlyOnEveryLap()
+    {
+        List<PlaylistItem> playlist = [new(Q(2), 112)];
+
+        var steps = RecitationProgram.Build(playlist, startIndex: 0, startsMidSurah: true);
+
+        Assert.Equal(
+        [
+            (RecitationPart.Istiadhah, 112),
+            (RecitationPart.Surah, 112),
+            (RecitationPart.Basmalah, 112),
+        ], Parts(steps));
+        Assert.Equal(1, RecitationProgram.LoopStart(steps));
+    }
+
+    [Theory]
+    [InlineData(1)]    // Al-Fatihah contains its own basmalah
+    [InlineData(9)]    // at-Tawbah is recited without one
+    public void NoTrailingBasmalahForASurahThatNeverTakesOne(int surah)
+    {
+        List<PlaylistItem> playlist = [new(Q(2), surah), new(Q(2), 112)];
+
+        var steps = RecitationProgram.Build(playlist, startIndex: 0, startsMidSurah: true);
+
+        Assert.DoesNotContain(Parts(steps), p => p == (RecitationPart.Basmalah, surah));
+    }
+
+    [Fact]
+    public void NoTrailingBasmalahWhenTheRecordingCarriesItsOwn()
+    {
+        List<PlaylistItem> playlist = [new(M(236), 112), new(M(236), 110)];
+
+        var steps = RecitationProgram.Build(
+            playlist, startIndex: 0, startsMidSurah: true, audioHasBasmalah: _ => true);
+
+        Assert.Equal(
+        [
+            (RecitationPart.Istiadhah, 112),
+            (RecitationPart.Surah, 112),
+            (RecitationPart.Surah, 110),
         ], Parts(steps));
     }
 
