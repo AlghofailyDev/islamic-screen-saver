@@ -23,7 +23,7 @@ public partial class ScreensaverWindow : Window
         _monitor = monitor;
         _session = session;
         InitializeComponent();
-        ReciterCaption.Text = Strings.Get("screensaver.reciter");
+        ReciterCaption.Text = Tracked(Strings.Get("screensaver.reciter"));
         // The reciter caption and the hint text read right-to-left in Arabic; the verse panel has its own direction.
         Overlay.FlowDirection = Strings.IsArabic ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         SourceInitialized += OnSourceInitialized;
@@ -33,12 +33,26 @@ public partial class ScreensaverWindow : Window
 
     internal DisplayMonitor Monitor => _monitor;
 
+    /// <summary>
+    /// The wide letter-spacing of a small caption label. WPF has no letter-spacing, so it is spaces —
+    /// which only works for a script whose letters stand alone. Arabic letters join, and pulling them
+    /// apart turns القارئ into ا ل ق ا ر ئ, so connected scripts are left exactly as written.
+    /// </summary>
+    private static string Tracked(string label) =>
+        Strings.IsRightToLeftText(label) ? label : string.Join(' ', label.ToCharArray());
+
     /// <summary>Applies background and panel look. Call once before playback starts.</summary>
+    /// <summary>True when the user has turned the panel off: the reciter name goes with it.</summary>
+    private bool _panelHidden;
+
     internal void ApplyAppearance(AppSettings settings, bool showPanel)
     {
         Backdrop.Load(settings.Background);
         Panel.ApplyStyle(settings.Panel, Backdrop.SuggestedTint);
-        if (!showPanel)
+        Panel.ApplyPosition(settings.Panel.Position);
+
+        _panelHidden = settings.Panel.Position == PanelPosition.Hidden;
+        if (_panelHidden || !showPanel)
         {
             Panel.Visibility = Visibility.Collapsed;
             ReciterBlock.Visibility = Visibility.Collapsed;
@@ -47,6 +61,10 @@ public partial class ScreensaverWindow : Window
 
     internal void SetReciter(string name)
     {
+        // Hiding the panel hides the reciter with it — the user asked for the background alone.
+        if (_panelHidden)
+            return;
+
         ReciterName.Text = name;
         // A Latin name keeps its own direction, so "AbdulBaset AbdulSamad (Murattal)" is not mirrored.
         ReciterName.FlowDirection = Strings.IsRightToLeftText(name) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;

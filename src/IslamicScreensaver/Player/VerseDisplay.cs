@@ -1,3 +1,6 @@
+using IslamicScreensaver.Core.Content;
+using IslamicScreensaver.Core.Localisation;
+
 namespace IslamicScreensaver.Player;
 
 /// <summary>Everything the verse panel needs to draw one moment of playback.</summary>
@@ -18,12 +21,32 @@ public sealed record VerseDisplay(
     public const string IstiadhahText = "أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَـٰنِ ٱلرَّجِيمِ";
     public const string IstiadhahTranslation = "I seek refuge in Allah from Satan, the accursed.";
 
+    /// <summary>The surah this moment belongs to, used to work out the juzʾ.</summary>
+    public int SurahNumber { get; init; }
+
+    /// <summary>
+    /// "جزء عمّ" — where in the muṣḥaf this is, named rather than numbered. Taken from the verse on
+    /// screen, so it changes with the recitation rather than being fixed per surah: al-Baqarah alone
+    /// spans three ajzāʾ.
+    /// </summary>
+    public string JuzLabel
+    {
+        get
+        {
+            if (SurahNumber < 1)
+                return string.Empty;
+            var juz = Juz.Of(SurahNumber, Math.Max(VerseNumber, 1));
+            return Strings.Get("screensaver.juz", Juz.Name(juz, Strings.IsArabic));
+        }
+    }
+
     /// <summary>The panel while the isti'ādhah or the basmalah is being recited, before the surah itself.</summary>
-    public static VerseDisplay Prelude(bool istiadhah, string surahNameArabic, string surahNameSimple, int versesCount, string reciterName, bool showTranslation) =>
+    public static VerseDisplay Prelude(bool istiadhah, int surahNumber, string surahNameArabic, string surahNameSimple, int versesCount, string reciterName, bool showTranslation) =>
         new(surahNameArabic, surahNameSimple, 0, versesCount,
             istiadhah ? IstiadhahText : BismillahText,
             [],
             showTranslation ? (istiadhah ? IstiadhahTranslation : BismillahTranslation) : null,
             reciterName,
-            IsBismillah: true);
+            IsBismillah: true)
+        { SurahNumber = surahNumber };
 }

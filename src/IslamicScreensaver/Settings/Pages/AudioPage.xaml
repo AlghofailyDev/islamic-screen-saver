@@ -25,10 +25,19 @@
         <TextBlock x:Name="DeviceNote" Style="{StaticResource Caption}" Margin="0,4,0,0" Visibility="Collapsed" />
 
         <TextBlock Text="{s:Loc audio.playback}" Style="{StaticResource SectionTitle}" />
-        <c:SettingsCard Header="{s:Loc audio.volume}">
+        <c:SettingsCard Header="{s:Loc audio.volume}" Description="{s:Loc audio.volume.desc}">
             <StackPanel Orientation="Horizontal">
                 <Slider x:Name="Volume" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="100" ValueChanged="Volume_Changed" />
                 <TextBlock x:Name="VolumeValue" Style="{StaticResource SliderValue}" />
+            </StackPanel>
+        </c:SettingsCard>
+        <c:SettingsCard Header="{s:Loc audio.override}" Description="{s:Loc audio.override.desc}">
+            <ToggleButton x:Name="OverrideVolume" Style="{StaticResource ToggleSwitch}" Click="OverrideVolume_Click" />
+        </c:SettingsCard>
+        <c:SettingsCard x:Name="FloorCard" Header="{s:Loc audio.override.floor}">
+            <StackPanel Orientation="Horizontal">
+                <Slider x:Name="VolumeFloor" Style="{StaticResource SettingSlider}" Minimum="5" Maximum="100" ValueChanged="VolumeFloor_Changed" />
+                <TextBlock x:Name="VolumeFloorValue" Style="{StaticResource SliderValue}" />
             </StackPanel>
         </c:SettingsCard>
         <c:SettingsCard Header="{s:Loc audio.timing}" Description="{s:Loc audio.timing.desc}">

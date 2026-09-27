@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using IslamicScreensaver.Core.Content;
 using IslamicScreensaver.Core.Localisation;
 using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Player;
@@ -30,9 +31,48 @@ public partial class VersePanel : UserControl
         InitializeComponent();
         foreach (var block in new[] { ArabicA, ArabicB, ChipArabic })
             block.FontFamily = AppFonts.Arabic;
-        foreach (var block in new[] { TranslationA, TranslationB, ChipEnglish, ChipVerse })
+        foreach (var block in new[] { TranslationA, TranslationB, ChipJuz, ChipVerse })
             block.FontFamily = AppFonts.Ui;
         Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>Design-value margins from the screen edge, matching the 1080p overlay.</summary>
+    private const double EdgeMargin = 88;
+
+    /// <summary>
+    /// Set once from the settings. Every verse calls <see cref="Show"/>, which makes the panel
+    /// visible, so "off" has to be remembered here rather than by collapsing it from outside.
+    /// </summary>
+    private bool _hidden;
+
+    /// <summary>Moves the panel, or takes it off screen entirely.</summary>
+    public void ApplyPosition(PanelPosition position)
+    {
+        _hidden = position == PanelPosition.Hidden;
+        if (_hidden)
+        {
+            Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        VerticalAlignment = position switch
+        {
+            PanelPosition.Top => VerticalAlignment.Top,
+            PanelPosition.Middle => VerticalAlignment.Center,
+            _ => VerticalAlignment.Bottom,
+        };
+
+        Margin = position switch
+        {
+            PanelPosition.Top => new Thickness(0, EdgeMargin, 0, 0),
+            PanelPosition.Middle => new Thickness(0),
+            _ => new Thickness(0, 0, 0, EdgeMargin),
+        };
+
+        // Coming back from Hidden: the panel is only shown again by the next verse, which in the
+        // settings preview never arrives. Put it back straight away if it already has something.
+        if (_hasContent)
+            Visibility = Visibility.Visible;
     }
 
     public bool WordHighlight { get; set; } = true;
@@ -63,6 +103,8 @@ public partial class VersePanel : UserControl
 
     public void ShowHint(string text)
     {
+        // A hint is the only thing a hidden panel still shows: it is how the screensaver says it has
+        // nothing to play, and silence with no explanation would look broken.
         Visibility = Visibility.Visible;
         Chip.Visibility = Visibility.Collapsed;
         ProgressTrack.Visibility = Visibility.Collapsed;
@@ -75,12 +117,17 @@ public partial class VersePanel : UserControl
 
     public void Show(VerseDisplay verse)
     {
+        if (_hidden)
+            return;
+
         Visibility = Visibility.Visible;
         Chip.Visibility = Visibility.Visible;
         ProgressTrack.Visibility = Visibility.Visible;
 
         ChipArabic.Text = verse.SurahNameArabic;
-        ChipEnglish.Text = verse.SurahNameSimple;
+        ChipJuz.Text = verse.JuzLabel;
+        // "جزء عمّ" is Arabic whichever language the chrome is in; the transliteration is not.
+        ChipJuz.FlowDirection = Strings.IsRightToLeftText(verse.JuzLabel) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         ChipVerse.Text = verse.IsBismillah ? string.Empty : Strings.Get("screensaver.verseOf", verse.VerseNumber, verse.VersesCount);
         ChipSeparator2.Visibility = ChipVerse.Visibility = verse.IsBismillah ? Visibility.Collapsed : Visibility.Visible;
 
@@ -120,6 +167,61 @@ public partial class VersePanel : UserControl
         ProgressFill.Width = Math.Clamp(fraction, 0, 1) * ProgressTrack.ActualWidth;
     }
 
+    // --- Fitting a long verse -----------------------------------------------------------------
+    // Nineteen verses of the Qur'an do not fit the card at the design size; 2:282 needs about 72%
+    // more room than there is. They are stepped down until they fit rather than clipped or scrolled.
+    //
+    // A Viewbox would be fewer lines and the wrong answer: it scales uniformly, so the glass panel
+    // would grow narrower as well as shorter and its width would jump from verse to verse. Only the
+    // type shrinks here — the panel keeps its width and reflows.
+
+    /// <summary>Design-size type, and the line height that goes with it.</summary>
+    private const double ArabicSize = 66;
+    private const double ArabicLineHeight = 125;
+    private const double TranslationSize = 22;
+    private const double TranslationLineHeight = 33;
+
+    /// <summary>
+    /// How tall the text may be, in 1080p design units: the screen less the chip above it, the
+    /// panel's own padding and the margin from the screen edge. Generous rather than exact — the
+    /// card should never look wedged against the edge of the display.
+    /// </summary>
+    private const double MaxTextHeight = 800;
+
+    /// <summary>
+    /// Below this the verse stops being something you can read across a room. Measured against the
+    /// whole Qur'an, nothing needs it: the longest verse fits at about 48.
+    /// </summary>
+    private const double MinArabicSize = 38;
+
+    /// <summary>
+    /// Shrinks the type until the verse fits, and leaves it alone when it already does — which is
+    /// every verse but nineteen. Measured rather than estimated from character counts, so it holds
+    /// for whatever Quran font the user drops into assets/fonts.
+    /// </summary>
+    private static void FitToCard(TextBlock arabic, TextBlock translation)
+    {
+        var width = arabic.ActualWidth > 0 ? arabic.ActualWidth : 912;   // card width less its padding
+
+        for (var size = ArabicSize; ; size -= 2)
+        {
+            var scale = size / ArabicSize;
+            arabic.FontSize = size;
+            arabic.LineHeight = ArabicLineHeight * scale;
+            translation.FontSize = TranslationSize * scale;
+            translation.LineHeight = TranslationLineHeight * scale;
+
+            if (size <= MinArabicSize)
+                return;
+
+            // Ask the layout system, so word runs, wrapping and the translation's own margin all count.
+            arabic.Measure(new Size(width, double.PositiveInfinity));
+            translation.Measure(new Size(width, double.PositiveInfinity));
+            if (arabic.DesiredSize.Height + translation.DesiredSize.Height <= MaxTextHeight)
+                return;
+        }
+    }
+
     private void Fill(TextBlock arabic, TextBlock translation, VerseDisplay verse)
     {
         arabic.Inlines.Clear();
@@ -147,6 +249,8 @@ public partial class VersePanel : UserControl
         translation.FlowDirection = Strings.IsRightToLeftText(verse.Translation)
             ? FlowDirection.RightToLeft
             : FlowDirection.LeftToRight;
+
+        FitToCard(arabic, translation);
     }
 
     private (TextBlock Arabic, TextBlock Translation) ActiveBlocks() =>

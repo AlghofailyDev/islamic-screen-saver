@@ -37,6 +37,7 @@ internal sealed class PlaybackEngine : IDisposable
 
     private SegmentAudioSource? _source;
     private IWavePlayer? _output;
+    private OutputVolume? _volume;
     private IReadOnlyList<AudioSegment> _segments = [];
     private int _loopStart;
     private int _segmentIndex = -1;
@@ -125,6 +126,13 @@ internal sealed class PlaybackEngine : IDisposable
         _output.PlaybackStopped += OnPlaybackStopped;
         _output.Init(volume);
         _output.Play();
+
+        // Our mixer entry is opened up only once the session exists, so the volume setting is the one
+        // gain we apply rather than being multiplied by whatever Windows remembered from last time.
+        _volume = OutputVolume.For(_settings.OutputDeviceId);
+        _volume.ResetOwnSession();
+        if (_settings.OverrideSystemVolume)
+            _volume.RaiseDeviceTo(_settings.SystemVolumeFloor);
 
         var preludes = _segments.Count(s => !s.IsSurah);
         Log.Info($"Program: {_segments.Count} segment(s), {preludes} prelude(s)" +
@@ -237,6 +245,7 @@ internal sealed class PlaybackEngine : IDisposable
             Log.Info($"Playing the {(segment.Part == RecitationPart.Istiadhah ? "istiadhah" : "basmalah")} before {chapter.NameSimple}.");
             VerseChanged?.Invoke(VerseDisplay.Prelude(
                 segment.Part == RecitationPart.Istiadhah,
+                item.Surah,
                 chapter.NameArabic, chapter.NameSimple, chapter.VersesCount,
                 ReciterNameFor(item.Recitation),
                 _settings.ShowTranslation));
@@ -262,7 +271,7 @@ internal sealed class PlaybackEngine : IDisposable
         if (verseIndex < 0 || verseIndex >= _clock.VerseCount)
         {
             return new VerseDisplay(chapter.NameArabic, chapter.NameSimple, 0, chapter.VersesCount,
-                VerseDisplay.BismillahText, [], null, reciter, IsBismillah: true);
+                VerseDisplay.BismillahText, [], null, reciter, IsBismillah: true) { SurahNumber = item.Surah };
         }
 
         var key = _clock[verseIndex].Key;
@@ -272,7 +281,7 @@ internal sealed class PlaybackEngine : IDisposable
         var translation = _translation is { } t && key.Ayah - 1 < t.Texts.Count ? t.Texts[key.Ayah - 1] : null;
 
         return new VerseDisplay(chapter.NameArabic, chapter.NameSimple, key.Ayah, chapter.VersesCount,
-            arabic, words, translation, reciter, IsBismillah: false);
+            arabic, words, translation, reciter, IsBismillah: false) { SurahNumber = key.Surah };
     }
 
     /// <summary>
@@ -309,5 +318,8 @@ internal sealed class PlaybackEngine : IDisposable
             Log.Error("Error stopping audio output.", ex);
         }
         _source?.Dispose();
+
+        // Puts the speakers back if we raised them. Last, so it happens even after a failed stop.
+        _volume?.Dispose();
     }
 }

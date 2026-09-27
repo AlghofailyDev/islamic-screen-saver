@@ -39,8 +39,21 @@ public sealed class BackgroundSettings
 }
 
 /// <summary>Look of the frosted verse panel. Colours are <c>#RRGGBB</c>; a null tint means "sample from the background".</summary>
+/// <summary>Where the verse panel sits on screen, or that it is not shown at all.</summary>
+public enum PanelPosition
+{
+    Top,
+    Middle,
+    Bottom,
+
+    /// <summary>No panel and no reciter name — the background alone, with the recitation.</summary>
+    Hidden,
+}
+
 public sealed class PanelSettings
 {
+    public PanelPosition Position { get; set; } = PanelPosition.Bottom;
+
     public double Blur { get; set; } = 24;
     public double Grain { get; set; } = 0.35;
     public string? TintColor { get; set; }
@@ -108,6 +121,19 @@ public sealed class AppSettings
     /// <summary>Remembered only so Settings can name a device that is currently unplugged.</summary>
     public string? OutputDeviceName { get; set; }
 
+    /// <summary>
+    /// Turn the speakers up if they are muted or nearly silent when the screensaver starts, and put
+    /// them back exactly as they were on the way out.
+    ///
+    /// Off by default: a muted PC is usually muted on purpose, and a screensaver that speaks at two
+    /// in the morning is worse than one that stays quiet. On, for a PC left on a shelf whose volume
+    /// someone turned down days ago.
+    /// </summary>
+    public bool OverrideSystemVolume { get; set; }
+
+    /// <summary>The device level <see cref="OverrideSystemVolume"/> raises to, 0..1.</summary>
+    public double SystemVolumeFloor { get; set; } = 0.5;
+
     // The isti'ādhah and the basmalah are part of how the Qur'an is recited, not preferences:
     // they always play, so there is nothing about them here.
 
@@ -143,7 +169,10 @@ public sealed class AppSettings
     public void Normalize()
     {
         Volume = double.IsFinite(Volume) ? Math.Clamp(Volume, 0, 1) : 0.8;
+        SystemVolumeFloor = double.IsFinite(SystemVolumeFloor) ? Math.Clamp(SystemVolumeFloor, 0.05, 1) : 0.5;
         SyncOffsetMs = Math.Clamp(SyncOffsetMs, -2000, 2000);
+        if (!Enum.IsDefined(Panel.Position))
+            Panel.Position = PanelPosition.Bottom;
         Panel.Blur = double.IsFinite(Panel.Blur) ? Math.Clamp(Panel.Blur, 0, 60) : 24;
         Panel.Grain = double.IsFinite(Panel.Grain) ? Math.Clamp(Panel.Grain, 0, 1) : 0.35;
         Panel.TintOpacity = double.IsFinite(Panel.TintOpacity) ? Math.Clamp(Panel.TintOpacity, 0, 1) : 0.42;

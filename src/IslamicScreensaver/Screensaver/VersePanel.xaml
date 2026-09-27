@@ -43,7 +43,8 @@
             <StackPanel Orientation="Horizontal" Margin="18,8">
                 <TextBlock x:Name="ChipArabic" FontSize="24" Foreground="#D9FFFFFF" VerticalAlignment="Center" FlowDirection="RightToLeft" Margin="0,-4,0,-2" />
                 <Rectangle Width="1" Height="14" Fill="#40FFFFFF" Margin="14,0" VerticalAlignment="Center" />
-                <TextBlock x:Name="ChipEnglish" FontSize="14" Foreground="#D9FFFFFF" VerticalAlignment="Center" />
+                <!-- The juz', named the way a mushaf names it: جزء عمّ rather than a bare number. -->
+                <TextBlock x:Name="ChipJuz" FontSize="14" Foreground="#D9FFFFFF" VerticalAlignment="Center" />
                 <Rectangle x:Name="ChipSeparator2" Width="1" Height="14" Fill="#40FFFFFF" Margin="14,0" VerticalAlignment="Center" />
                 <TextBlock x:Name="ChipVerse" FontSize="14" Foreground="#A6FFFFFF" VerticalAlignment="Center" />
             </StackPanel>

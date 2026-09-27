@@ -106,9 +106,29 @@ public partial class AppearancePage : UserControl
     private void RefreshVerse()
     {
         PreviewPanel.ApplyStyle(_ctx.Settings.Panel, PreviewBackground.SuggestedTint);
+        PreviewPanel.ApplyPosition(_ctx.Settings.Panel.Position);
         PreviewPanel.Show(SampleVerse());
         PreviewPanel.HighlightWord(2);
         PreviewPanel.SetProgress(0.38);
+    }
+
+    /// <summary>In <see cref="PanelPosition"/> order, so the combo's index is the enum value.</summary>
+    private static readonly string[] PanelPositionKeys =
+    [
+        "appearance.position.top",
+        "appearance.position.middle",
+        "appearance.position.bottom",
+        "appearance.position.hidden",
+    ];
+
+    private void PanelPosition_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || PanelPositionBox.SelectedIndex < 0)
+            return;
+
+        _ctx.Settings.Panel.Position = (PanelPosition)PanelPositionBox.SelectedIndex;
+        _ctx.Changed();
+        ApplyPreview();
     }
 
     private void LoadControls()
@@ -122,6 +142,10 @@ public partial class AppearancePage : UserControl
         TintMode.Items.Add(Strings.Get("appearance.automatic"));
         TintMode.Items.Add(Strings.Get("appearance.custom"));
         TintMode.SelectedIndex = p.TintColor is null ? 0 : 1;
+        PanelPositionBox.Items.Clear();
+        foreach (var key in PanelPositionKeys)
+            PanelPositionBox.Items.Add(Strings.Get(key));
+        PanelPositionBox.SelectedIndex = (int)p.Position;
         TintHex.Text = p.TintColor ?? ToHex(PreviewBackground.SuggestedTint);
         TintHex.IsEnabled = p.TintColor is not null;
         ArabicHex.Text = p.ArabicColor;
@@ -151,13 +175,15 @@ public partial class AppearancePage : UserControl
             text?.Words ?? ["ٱلْحَمْدُ", "لِلَّهِ", "رَبِّ", "ٱلْعَـٰلَمِينَ"],
             translation,
             _ctx.Catalog.ReciterOf(FirstRecitation())?.Name(Strings.IsArabic) ?? string.Empty,
-            IsBismillah: false);
+            IsBismillah: false)
+        { SurahNumber = 1 };
     }
 
     /// <summary>Restyles the preview in place — no crossfade, so slider drags feel live.</summary>
     private void ApplyPreview()
     {
         PreviewPanel.ApplyStyle(_ctx.Settings.Panel, PreviewBackground.SuggestedTint);
+        PreviewPanel.ApplyPosition(_ctx.Settings.Panel.Position);
         PreviewPanel.HighlightWord(2);
         if (_ctx.Settings.Panel.TintColor is null && !_loading)
         {
