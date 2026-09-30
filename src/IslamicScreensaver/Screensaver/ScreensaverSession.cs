@@ -30,14 +30,31 @@ internal sealed class ScreensaverSession
     public void Start()
     {
         Strings.Use(_settings.Language);
+
+        // Windows owns the idle timer, so quiet hours are enforced here rather than prevented: the
+        // one thing we can do is decide what happens once it has already launched us.
+        var quiet = _settings.Quiet.CoversNow();
+        if (quiet && _settings.Quiet.Behaviour == QuietHoursBehaviour.DoNotStart)
+        {
+            Log.Info($"Quiet hours {_settings.Quiet.Describe()}: exiting without showing anything.");
+            Application.Current.Shutdown();
+            return;
+        }
+
         var monitors = DisplayMonitor.All();
-        Log.Info($"Screensaver starting on {monitors.Count} monitor(s).");
+        Log.Info($"Screensaver starting on {monitors.Count} monitor(s)." +
+                 (quiet ? $" Quiet hours {_settings.Quiet.Describe()}: {_settings.Quiet.Behaviour}." : string.Empty));
+
+        var dark = quiet && _settings.Quiet.Behaviour == QuietHoursBehaviour.DarkAndSilent;
 
         foreach (var monitor in monitors)
         {
             var window = new ScreensaverWindow(monitor, this);
             _windows.Add(window);
-            window.ApplyAppearance(_settings, showPanel: _settings.MirrorOnAllMonitors || _windows.Count == 1);
+            if (dark)
+                window.ShowNothing();
+            else
+                window.ApplyAppearance(_settings, showPanel: _settings.MirrorOnAllMonitors || _windows.Count == 1);
             window.Show();
         }
 
@@ -55,7 +72,54 @@ internal sealed class ScreensaverSession
         };
         originTimer.Start();
 
+        if (dark)
+            return;   // nothing to play, and nothing to fall quiet later
+
         StartPlayback();
+        ScheduleQuietHours();
+    }
+
+    /// <summary>
+    /// Goes quiet part-way through a session that began before the window opened — started at 22:50,
+    /// quiet at 23:00. It does not come back out again afterwards: recitation resuming by itself at
+    /// seven in the morning would be its own surprise, and the session is over as soon as anyone
+    /// touches the machine.
+    /// </summary>
+    private void ScheduleQuietHours()
+    {
+        if (_settings.Quiet.TimeUntilStart() is not { } until)
+            return;
+
+        Log.Info($"Quiet hours {_settings.Quiet.Describe()} begin in {until.TotalMinutes:0} minute(s).");
+        var timer = new DispatcherTimer { Interval = until };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            GoQuiet();
+        };
+        timer.Start();
+    }
+
+    private void GoQuiet()
+    {
+        if (_exiting)
+            return;
+
+        Log.Info($"Quiet hours reached: {_settings.Quiet.Behaviour}.");
+        switch (_settings.Quiet.Behaviour)
+        {
+            case QuietHoursBehaviour.DoNotStart:
+            case QuietHoursBehaviour.DarkAndSilent:
+                _engine?.Dispose();
+                _engine = null;
+                foreach (var window in _windows)
+                    window.ShowNothing();
+                break;
+
+            case QuietHoursBehaviour.Silent:
+                _engine?.Mute();
+                break;
+        }
     }
 
     private void StartPlayback()
@@ -91,6 +155,10 @@ internal sealed class ScreensaverSession
 
         var windows = WindowsWithPanels();
         _engine = new PlaybackEngine(cache, _settings, playlist, startIndex, lastState, catalog);
+
+        // Already inside quiet hours and asked only for silence: the panel still follows along.
+        if (_settings.Quiet.Behaviour == QuietHoursBehaviour.Silent && _settings.Quiet.CoversNow())
+            _engine.Mute();
         _engine.VerseChanged += verse =>
         {
             foreach (var window in windows)

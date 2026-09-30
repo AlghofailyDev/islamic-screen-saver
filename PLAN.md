@@ -336,6 +336,22 @@ half-timed. `Recitation.TimedSurahs` carries the exact set, separate from the su
 - [ ] Audio stays on the sources' CDNs for now; the catalog carries the URL so moving it later is a
       data change, not a release
 
+### M9 — Text size + quiet hours (requested 2026-10-01)
+- [x] **Text size**: one "Text size" slider on Appearance, 70–150%, scaling the verse and its
+      translation together. The long-verse fit still applies, starting from the chosen size
+- [x] **Quiet hours**: its own Settings page — off by default, so the screensaver plays normally with
+      sound at any hour. When on, the user picks the window (quarter-hour steps, wrapping past
+      midnight) and what happens inside it
+- [x] Three behaviours, since Windows owns the idle timer and we can only decide what to do once it
+      has launched us: **dark and silent** (the display still blanks, nothing plays), **do not start**
+      (exit at once), **play without sound** (verses still follow; volume 0, so the device clock the
+      panel reads keeps ticking)
+- [x] Goes quiet part-way through a session that began before the window opened, and does not come
+      back out: recitation resuming by itself at 07:00 would be its own surprise
+- [x] Verified live 2026-10-01: all three behaviours from the log, and the slider measured on the
+      preview (34 / 48 / 73 px at 70 / 100 / 150%)
+- [ ] User to try: set a window over tonight and confirm nothing wakes them
+
 ### M6 — Hardening + release
 - [ ] Locked / secure-desktop behaviour tested (audio, cache access)
 - [ ] Multi-monitor mirror option
@@ -394,6 +410,11 @@ Open:
 | 2026-09-26 | Our own entry in the Windows volume mixer is opened wide on every start; the volume setting is the only gain we apply | What a listener hears was our gain × our mixer entry × the device master. Windows remembers that entry per application for ever, so a slider nudged once months ago kept multiplying: 10% of 10% is 1% |
 | 2026-09-26 | The device's own volume is left alone unless the user opts in, and then restored exactly on exit | A muted PC is usually muted on purpose, and a screensaver that speaks at two in the morning is worse than a silent one — but a PC left on a shelf is the case the opt-in exists for |
 | 2026-09-26 | A verse too tall for the screen is fitted by stepping the type down, not by a `Viewbox` | Nineteen verses of the Qur'an overflow the card; 2:282, āyat ad-dayn, needs 72% more room than there is. A `Viewbox` scales uniformly, so the glass panel would grow narrower as well as shorter and its width would jump between verses. Shrinking only the type keeps the panel's width fixed. Measured over all 6,236 verses: eighteen land at 60–64px, 2:282 at 46px, none reaches the 38px floor |
+| 2026-10-01 | Quiet hours are enforced when the screensaver starts, not by stopping it from starting | Windows owns the idle timer and there is no supported way to tell it "not now". What we control is what happens once it has launched, so the setting is a choice of behaviour rather than a veto |
+| 2026-10-01 | Quiet hours default to **off**, and "dark and silent" is the default once switched on | Nobody should have their screensaver change because they upgraded. Inside the window, blanking the display is the half of a screensaver that is welcome at night; the recitation and the light are the half that wakes you |
+| 2026-10-01 | A window whose end is before its start wraps past midnight; two identical times mean no window | 23:00–07:00 is how a night is written. The dangerous reading of `From == To` is "always", which would silence the screensaver for ever from one mis-click |
+| 2026-10-01 | Once a session goes quiet it stays quiet, rather than coming back out at the far edge of the window | The screensaver only runs while nobody is at the machine, so recitation starting by itself at seven in the morning would startle exactly the person the feature is meant to protect |
+| 2026-10-01 | "Play without sound" is volume 0, not stopped playback | The verse panel is driven by the device's rendered-sample count. Stopping the audio would stop the clock and freeze the panel on one verse; at zero volume it still follows the recitation |
 | 2026-09-16 | The output device is pinned by endpoint id, and a missing one silently falls back to the system default | A screensaver must never be silent because a speaker was unplugged; the Settings page says when the choice is not currently connected |
 | 2026-09-14 | Downloads are per-reciter (Reciters → reciter page), separate from playback selection (Library, Surahs) | "What is on disk" and "what plays" are different questions; conflating them made downloads follow the surah selection |
 | 2026-09-14 | A 404 is data, not an error: remembered as unavailable, never retried, never aborts a batch | Quran.com lists recordings its CDN does not host; one bad file must not stop a 114-surah download |

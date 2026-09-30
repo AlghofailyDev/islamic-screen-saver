@@ -91,6 +91,8 @@ public partial class VersePanel : UserControl
         Glass.TintOpacity = panel.TintOpacity;
         Glass.TintColor = TryColor(panel.TintColor) ?? autoTint;
 
+        _textScale = panel.TextScale;
+
         _arabicBrush = Freeze(new SolidColorBrush(TryColor(panel.ArabicColor) ?? Color.FromRgb(0xFB, 0xF5, 0xE6)));
         var translation = Freeze(new SolidColorBrush(TryColor(panel.TranslationColor) ?? Color.FromRgb(0xC9, 0xC9, 0xC9)));
         foreach (var block in new[] { ArabicA, ArabicB })
@@ -181,6 +183,9 @@ public partial class VersePanel : UserControl
     private const double TranslationSize = 22;
     private const double TranslationLineHeight = 33;
 
+    /// <summary>The user's size preference. The fit below starts from here rather than from 66.</summary>
+    private double _textScale = 1.0;
+
     /// <summary>
     /// How tall the text may be, in 1080p design units: the screen less the chip above it, the
     /// panel's own padding and the margin from the screen edge. Generous rather than exact — the
@@ -199,11 +204,11 @@ public partial class VersePanel : UserControl
     /// every verse but nineteen. Measured rather than estimated from character counts, so it holds
     /// for whatever Quran font the user drops into assets/fonts.
     /// </summary>
-    private static void FitToCard(TextBlock arabic, TextBlock translation)
+    private void FitToCard(TextBlock arabic, TextBlock translation)
     {
         var width = arabic.ActualWidth > 0 ? arabic.ActualWidth : 912;   // card width less its padding
 
-        for (var size = ArabicSize; ; size -= 2)
+        for (var size = ArabicSize * _textScale; ; size -= 2)
         {
             var scale = size / ArabicSize;
             arabic.FontSize = size;

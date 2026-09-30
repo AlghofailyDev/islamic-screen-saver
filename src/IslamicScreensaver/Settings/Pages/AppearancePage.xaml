@@ -33,6 +33,12 @@
         <c:SettingsCard Header="{s:Loc appearance.position}" Description="{s:Loc appearance.position.desc}">
             <ComboBox x:Name="PanelPositionBox" Width="200" Height="32" SelectionChanged="PanelPosition_Changed" />
         </c:SettingsCard>
+        <c:SettingsCard Header="{s:Loc appearance.textSize}" Description="{s:Loc appearance.textSize.desc}">
+            <StackPanel Orientation="Horizontal">
+                <Slider x:Name="TextScale" Style="{StaticResource SettingSlider}" Minimum="70" Maximum="150" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="TextScale_Changed" />
+                <TextBlock x:Name="TextScaleValue" Style="{StaticResource SliderValue}" Width="64" />
+            </StackPanel>
+        </c:SettingsCard>
         <c:SettingsCard Header="{s:Loc appearance.blur}" Description="{s:Loc appearance.blur.desc}">
             <StackPanel Orientation="Horizontal">
                 <Slider x:Name="Blur" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="60" ValueChanged="Blur_Changed" />

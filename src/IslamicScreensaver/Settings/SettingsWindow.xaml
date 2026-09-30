@@ -56,6 +56,9 @@
                 <ListBoxItem Tag="translation">
                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8C1;" Style="{StaticResource Icon}" /><TextBlock Text="Translation" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
                 </ListBoxItem>
+                <ListBoxItem Tag="quiet">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE708;" Style="{StaticResource Icon}" /><TextBlock Text="Quiet hours" Style="{StaticResource Body}" Margin="14,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                </ListBoxItem>
             </ListBox>
 
             <StackPanel Grid.Row="2">

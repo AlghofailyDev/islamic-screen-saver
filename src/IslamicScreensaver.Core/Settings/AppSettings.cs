@@ -54,6 +54,12 @@ public sealed class PanelSettings
 {
     public PanelPosition Position { get; set; } = PanelPosition.Bottom;
 
+    /// <summary>
+    /// Multiplies the verse and translation type together, keeping their proportion. 1.0 is the
+    /// design size (66 px Arabic at 1080p). Long verses are still shrunk to fit from here.
+    /// </summary>
+    public double TextScale { get; set; } = 1.0;
+
     public double Blur { get; set; } = 24;
     public double Grain { get; set; } = 0.35;
     public string? TintColor { get; set; }
@@ -152,6 +158,9 @@ public sealed class AppSettings
 
     public PanelSettings Panel { get; set; } = new();
 
+    /// <summary>A window of the day to stay out of. Off by default; see <see cref="QuietHours"/>.</summary>
+    public QuietHours Quiet { get; set; } = new();
+
     /// <summary>Show the verse panel on every monitor rather than only the primary.</summary>
     public bool MirrorOnAllMonitors { get; set; }
 
@@ -173,6 +182,9 @@ public sealed class AppSettings
         SyncOffsetMs = Math.Clamp(SyncOffsetMs, -2000, 2000);
         if (!Enum.IsDefined(Panel.Position))
             Panel.Position = PanelPosition.Bottom;
+        Panel.TextScale = double.IsFinite(Panel.TextScale) ? Math.Clamp(Panel.TextScale, 0.7, 1.5) : 1.0;
+        if (!Enum.IsDefined(Quiet.Behaviour))
+            Quiet.Behaviour = QuietHoursBehaviour.DarkAndSilent;
         Panel.Blur = double.IsFinite(Panel.Blur) ? Math.Clamp(Panel.Blur, 0, 60) : 24;
         Panel.Grain = double.IsFinite(Panel.Grain) ? Math.Clamp(Panel.Grain, 0, 1) : 0.35;
         Panel.TintOpacity = double.IsFinite(Panel.TintOpacity) ? Math.Clamp(Panel.TintOpacity, 0, 1) : 0.42;

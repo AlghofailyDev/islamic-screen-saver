@@ -59,6 +59,18 @@ public partial class ScreensaverWindow : Window
         }
     }
 
+    /// <summary>
+    /// Black, and nothing else: no background, no panel, no reciter. Used inside quiet hours, where
+    /// the display should still blank — that part is welcome at night — but nothing should light up.
+    /// </summary>
+    internal void ShowNothing()
+    {
+        _panelHidden = true;
+        Backdrop.Visibility = Visibility.Collapsed;
+        Panel.Visibility = Visibility.Collapsed;
+        ReciterBlock.Visibility = Visibility.Collapsed;
+    }
+
     internal void SetReciter(string name)
     {
         // Hiding the panel hides the reciter with it — the user asked for the background alone.

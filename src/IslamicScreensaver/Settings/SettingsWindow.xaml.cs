@@ -126,6 +126,7 @@ public partial class SettingsWindow : Window
                 "background" => new BackgroundPage(_context),
                 "appearance" => new AppearancePage(_context),
                 "translation" => new TranslationPage(_context),
+            "quiet" => new QuietHoursPage(_context),
                 _ => new AboutPage(_context),
             };
             _pages[key] = page;

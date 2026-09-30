@@ -38,6 +38,7 @@ internal sealed class PlaybackEngine : IDisposable
     private SegmentAudioSource? _source;
     private IWavePlayer? _output;
     private OutputVolume? _volume;
+    private VolumeSampleProvider? _gain;
     private IReadOnlyList<AudioSegment> _segments = [];
     private int _loopStart;
     private int _segmentIndex = -1;
@@ -81,6 +82,20 @@ internal sealed class PlaybackEngine : IDisposable
     /// <summary>Raised every tick with 0..1 progress through the current verse, for the panel's hairline.</summary>
     public event Action<double>? VerseProgress;
 
+    /// <summary>
+    /// Silent, but still running: the verse panel follows the recitation as usual, because the clock
+    /// it reads is the device's own rendered-sample count and that keeps ticking at zero volume.
+    /// </summary>
+    public bool Muted { get; private set; }
+
+    /// <summary>Drops the volume to nothing for the rest of the session. Used when quiet hours begin.</summary>
+    public void Mute()
+    {
+        Muted = true;
+        if (_gain is not null)
+            _gain.Volume = 0f;
+    }
+
     public PlaylistItem? Current => _index >= 0 && _index < _playlist.Count ? _playlist[_index] : null;
 
     /// <summary>For diagnostics: the audio position the listener is hearing, if playing.</summary>
@@ -120,11 +135,11 @@ internal sealed class PlaybackEngine : IDisposable
             : 0;
 
         _source = new SegmentAudioSource(_segments, _loopStart, _startOffset, resumeSegment);
-        var volume = new VolumeSampleProvider(_source) { Volume = (float)_settings.Volume };
+        _gain = new VolumeSampleProvider(_source) { Volume = Muted ? 0f : (float)_settings.Volume };
 
         _output = CreateOutput(_settings.OutputDeviceId);
         _output.PlaybackStopped += OnPlaybackStopped;
-        _output.Init(volume);
+        _output.Init(_gain);
         _output.Play();
 
         // Our mixer entry is opened up only once the session exists, so the volume setting is the one

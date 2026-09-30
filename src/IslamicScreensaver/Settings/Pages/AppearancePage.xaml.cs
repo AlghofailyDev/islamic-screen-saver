@@ -121,6 +121,20 @@ public partial class AppearancePage : UserControl
         "appearance.position.hidden",
     ];
 
+    private void TextScale_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        // Minimum is 70, so WPF coerces the default 0 up while the XAML is still parsing — before the
+        // label below exists. Same trap as the Audio page's floor slider.
+        if (TextScaleValue is null)
+            return;
+
+        TextScaleValue.Text = $"{TextScale.Value:0}%";
+        if (_loading) return;
+        _ctx.Settings.Panel.TextScale = TextScale.Value / 100;
+        _ctx.Changed();
+        RefreshVerse();   // the fit depends on the size, so the verse is rebuilt rather than restyled
+    }
+
     private void PanelPosition_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_loading || PanelPositionBox.SelectedIndex < 0)
@@ -146,6 +160,7 @@ public partial class AppearancePage : UserControl
         foreach (var key in PanelPositionKeys)
             PanelPositionBox.Items.Add(Strings.Get(key));
         PanelPositionBox.SelectedIndex = (int)p.Position;
+        TextScale.Value = p.TextScale * 100;
         TintHex.Text = p.TintColor ?? ToHex(PreviewBackground.SuggestedTint);
         TintHex.IsEnabled = p.TintColor is not null;
         ArabicHex.Text = p.ArabicColor;
@@ -153,6 +168,7 @@ public partial class AppearancePage : UserControl
         WordHighlight.IsChecked = p.WordHighlight;
         _loading = false;
 
+        TextScaleValue.Text = $"{p.TextScale * 100:0}%";
         BlurValue.Text = $"{p.Blur:0} px";
         GrainValue.Text = $"{p.Grain * 100:0}%";
         TintOpacityValue.Text = $"{p.TintOpacity * 100:0}%";
