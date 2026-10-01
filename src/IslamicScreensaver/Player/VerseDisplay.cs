@@ -25,20 +25,11 @@ public sealed record VerseDisplay(
     public int SurahNumber { get; init; }
 
     /// <summary>
-    /// "جزء عمّ" — where in the muṣḥaf this is, named rather than numbered. Taken from the verse on
-    /// screen, so it changes with the recitation rather than being fixed per surah: al-Baqarah alone
-    /// spans three ajzāʾ.
+    /// «الجزء الثلاثون» — where in the muṣḥaf this is. Taken from the verse on screen, so it changes
+    /// with the recitation rather than being fixed per surah: al-Baqarah alone spans three ajzāʾ.
     /// </summary>
-    public string JuzLabel
-    {
-        get
-        {
-            if (SurahNumber < 1)
-                return string.Empty;
-            var juz = Juz.Of(SurahNumber, Math.Max(VerseNumber, 1));
-            return Strings.Get("screensaver.juz", Juz.Name(juz, Strings.IsArabic));
-        }
-    }
+    public string JuzLabel =>
+        SurahNumber < 1 ? string.Empty : Strings.Get(Juz.LabelKey(Juz.Of(SurahNumber, Math.Max(VerseNumber, 1))));
 
     /// <summary>The panel while the isti'ādhah or the basmalah is being recited, before the surah itself.</summary>
     public static VerseDisplay Prelude(bool istiadhah, int surahNumber, string surahNameArabic, string surahNameSimple, int versesCount, string reciterName, bool showTranslation) =>
