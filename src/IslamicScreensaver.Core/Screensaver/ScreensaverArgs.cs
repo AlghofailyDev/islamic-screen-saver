@@ -15,6 +15,12 @@ public enum ScreensaverMode
 
     /// <summary>Not a Windows mode: download the starter content set headlessly (<c>/seed</c>), used by the installer.</summary>
     Seed,
+
+    /// <summary>
+    /// Not a Windows mode: delete settings and every downloaded recitation, wherever the library was
+    /// moved to (<c>/purge</c>). Called by the uninstaller when the user asks for everything gone.
+    /// </summary>
+    Purge,
 }
 
 /// <summary>
@@ -47,6 +53,7 @@ public sealed record ScreensaverArgs(ScreensaverMode Mode, nint ParentWindow)
             "p" => new ScreensaverArgs(ScreensaverMode.Preview, handle),
             "c" => new ScreensaverArgs(ScreensaverMode.Configure, handle),
             "seed" => new ScreensaverArgs(ScreensaverMode.Seed, 0),
+            "purge" => new ScreensaverArgs(ScreensaverMode.Purge, 0),
             // "/a" (legacy password change) and anything unknown fall back to settings.
             _ => new ScreensaverArgs(ScreensaverMode.Configure, 0),
         };

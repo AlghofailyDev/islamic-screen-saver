@@ -3,6 +3,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using IslamicScreensaver.Core;
 using IslamicScreensaver.Core.Screensaver;
+using IslamicScreensaver.Core.Settings;
 using IslamicScreensaver.Screensaver;
 using IslamicScreensaver.Seeding;
 using IslamicScreensaver.Settings;
@@ -25,7 +26,9 @@ public partial class App : Application
         DispatcherUnhandledException += OnUnhandledException;
 
         var args = ScreensaverArgs.Parse(e.Args);
-        Log.Info($"Started in {args.Mode} mode (args: \"{string.Join(' ', e.Args)}\").");
+        // The version first: a tester's log should say which build it came from.
+        var version = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "dev";
+        Log.Info($"Started {version} in {args.Mode} mode (args: \"{string.Join(' ', e.Args)}\").");
 
         switch (args.Mode)
         {
@@ -52,7 +55,26 @@ public partial class App : Application
             case ScreensaverMode.Seed:
                 _ = SeedThenExitAsync();
                 break;
+
+            case ScreensaverMode.Purge:
+                Shutdown(Purge());
+                break;
         }
+    }
+
+    /// <summary>
+    /// Everything this app wrote, gone — including a library moved to another drive, which only these
+    /// settings know the location of. Run by the uninstaller after the user says yes.
+    /// </summary>
+    private static int Purge()
+    {
+        var settings = SettingsStore.Load();
+        var moved = settings.CacheDirectory;
+        Log.Info($"Purging settings and downloads{(moved is null ? "" : $", including the library at {moved}")}.");
+
+        // Nothing may be logged after this: every log line recreates the folder being deleted.
+        var result = LibraryPurge.Run(AppPaths.SettingsDirectory, AppPaths.LocalDirectory, moved);
+        return result.Failed.Count == 0 ? 0 : 1;
     }
 
     private async Task SeedThenExitAsync()

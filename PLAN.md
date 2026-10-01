@@ -361,7 +361,17 @@ half-timed. `Recitation.TimedSurahs` carries the exact set, separate from the su
 - [ ] Locked / secure-desktop behaviour tested (audio, cache access)
 - [ ] Multi-monitor mirror option
 - [ ] Memory / GPU profile over a 1-hour run; no leaks on verse transitions
-- [ ] Installer (script → MSI), uninstall cleans registry
+- [x] **Installer: a setup.exe built with Inno Setup** (`installer/build-setup.ps1`), superseding the
+      MSI plan. Per-user, no admin prompt; registers the screensaver; optional starter recitations;
+      English and Arabic; a real entry in Settings → Apps whose uninstaller asks before deleting
+      downloads and unregisters only if the screensaver is still ours. Verified 2026-10-01: silent
+      install, registration, Apps entry, version in the log, silent uninstall keeping the library,
+      and the Arabic wizard
+- [x] Uninstall can remove a library moved to another drive: the app's own `/purge` mode, shared by
+      the setup's uninstaller and `uninstall.ps1 -Purge` (`LibraryPurge`, unit tested)
+- [x] Each build carries a version — 0.9.&lt;commit count&gt; — shown in Settings → Apps and logged at
+      every start, so a tester's report says which build it came from
+- [ ] Code signing, so testers don't have to click past SmartScreen (needs a paid certificate)
 - [ ] Attribution screen: Quran.com, KFGQPC font, translation licences
 - [ ] v1.0 tag
 
@@ -415,6 +425,8 @@ Open:
 | 2026-09-26 | Our own entry in the Windows volume mixer is opened wide on every start; the volume setting is the only gain we apply | What a listener hears was our gain × our mixer entry × the device master. Windows remembers that entry per application for ever, so a slider nudged once months ago kept multiplying: 10% of 10% is 1% |
 | 2026-09-26 | The device's own volume is left alone unless the user opts in, and then restored exactly on exit | A muted PC is usually muted on purpose, and a screensaver that speaks at two in the morning is worse than a silent one — but a PC left on a shelf is the case the opt-in exists for |
 | 2026-09-26 | A verse too tall for the screen is fitted by stepping the type down, not by a `Viewbox` | Nineteen verses of the Qur'an overflow the card; 2:282, āyat ad-dayn, needs 72% more room than there is. A `Viewbox` scales uniformly, so the glass panel would grow narrower as well as shorter and its width would jump between verses. Shrinking only the type keeps the panel's width fixed. Measured over all 6,236 verses: eighteen land at 60–64px, 2:282 at 46px, none reaches the 38px floor |
+| 2026-10-01 | The installer is a setup.exe built with **Inno Setup**, superseding the MSI plan | Asked for: a friend should install it by double-clicking, not running commands. Inno gives a single per-user exe with no admin prompt and a proper Settings → Apps entry, ships an Arabic translation, and a per-user screensaver with a seed checkbox is a few lines rather than a WiX project. MSI's advantage is company-managed deployment, which no one here needs. MSIX was ruled out: it virtualises the registry, so the value telling Windows which screensaver to use would land where Windows never reads it |
+| 2026-10-01 | Removing a moved library is the app's job (`/purge`), not the uninstaller's | Only the app can read its settings to find where the library went, and two copies of "which folders are safe to delete" — one in Pascal, one in PowerShell — would sooner or later disagree. Both uninstall paths call the same tested C# |
 | 2026-10-01 | Cancel on a three-button prompt backs out entirely; it is never a quieter No | Changing the library folder asked "move the downloads?" as Yes/No/Cancel and treated Cancel as No, so thinking better of it still left the library pointed at an empty folder. A destructive-looking prompt has to let someone leave without having changed anything |
 | 2026-10-01 | Quiet hours are enforced when the screensaver starts, not by stopping it from starting | Windows owns the idle timer and there is no supported way to tell it "not now". What we control is what happens once it has launched, so the setting is a choice of behaviour rather than a veto |
 | 2026-10-01 | Quiet hours default to **off**, and "dark and silent" is the default once switched on | Nobody should have their screensaver change because they upgraded. Inside the window, blanking the display is the half of a screensaver that is welcome at night; the recitation and the light are the half that wakes you |
