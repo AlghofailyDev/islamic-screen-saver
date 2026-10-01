@@ -372,7 +372,20 @@ half-timed. `Recitation.TimedSurahs` carries the exact set, separate from the su
 - [x] Each build carries a version — 0.9.&lt;commit count&gt; — shown in Settings → Apps and logged at
       every start, so a tester's report says which build it came from
 - [ ] Code signing, so testers don't have to click past SmartScreen (needs a paid certificate)
-- [ ] Attribution screen: Quran.com, KFGQPC font, translation licences
+- [x] **Licensed GPL-3.0** (`LICENSE`, from gnu.org). About page shows the copyright line, no
+      warranty, and buttons to read the licence and the third-party notices; it now credits MP3 Quran
+      as well as Quran.com
+- [x] `THIRD-PARTY-NOTICES.md` plus the full licence texts of everything redistributed — the .NET
+      runtime, the Windows Desktop runtime and NAudio, all MIT — shipped in every install's `licenses`
+      folder. A self-contained build ships the runtime without them, so earlier setups lacked them
+- [ ] **Source and terms of `assets/audio/istiadhah.mp3` and `basmalah.mp3`** — unknown; must be
+      settled before any public release
+- [ ] The rest of the About page is hard-coded English in the XAML, against the project's own rule
+      that every visible string goes through `Strings`
+- [x] Setup opens on a welcome page, then the licence (to read, not accept), then **where to keep
+      recitations** — first install only, with a live preview of the exact folder. Verified 2026-10-02
+      in English and Arabic: the pages, the preview, the refusal of a folder inside the program's own,
+      and the app recording the choice on a first install but refusing to repoint an existing library
 - [ ] v1.0 tag
 
 ---
@@ -425,6 +438,10 @@ Open:
 | 2026-09-26 | Our own entry in the Windows volume mixer is opened wide on every start; the volume setting is the only gain we apply | What a listener hears was our gain × our mixer entry × the device master. Windows remembers that entry per application for ever, so a slider nudged once months ago kept multiplying: 10% of 10% is 1% |
 | 2026-09-26 | The device's own volume is left alone unless the user opts in, and then restored exactly on exit | A muted PC is usually muted on purpose, and a screensaver that speaks at two in the morning is worse than a silent one — but a PC left on a shelf is the case the opt-in exists for |
 | 2026-09-26 | A verse too tall for the screen is fitted by stepping the type down, not by a `Viewbox` | Nineteen verses of the Qur'an overflow the card; 2:282, āyat ad-dayn, needs 72% more room than there is. A `Viewbox` scales uniformly, so the glass panel would grow narrower as well as shorter and its width would jump between verses. Shrinking only the type keeps the panel's width fixed. Measured over all 6,236 verses: eighteen land at 60–64px, 2:282 at 46px, none reaches the 38px floor |
+| 2026-10-02 | The project is licensed **GPL-3.0** | Asked for: open source, buildable upon, but not something anyone can take and profit from. A licence that forbids commercial use is not open source by definition, so the two cannot both hold strictly. GPL-3.0 keeps it truly open while requiring every distributed fork to stay open, credited and under the same terms — so no one can turn it into a closed product, and selling copies of something anyone may give away free has little point. Quran.com's own Android app uses it. Checked against the alternatives: PolyForm Noncommercial (bans commercial use, but forks need not stay open) and CC BY-NC-SA (Creative Commons advises against it for software) |
+| 2026-10-02 | The setup shows the licence to read, not to accept | GPL-3.0 section 9: no one is required to accept it to receive or run the program. A forced "I accept" would be untrue to the licence and one more step in a setup the user had called confusing |
+| 2026-10-02 | Setup asks where to keep recitations on a **first install only**, and the app applies the choice | Recitations run to gigabytes, so the drive matters from the start. On an upgrade there may already be a library somewhere, and repointing the setting would orphan it rather than move it — the Library page moves files properly, with progress. The setup passes the folder to the app (`/library`), which applies the same folder rule the Library page and the purge use, and refuses outright if settings already exist |
+| 2026-10-02 | Notices for the bundled runtime come from the NuGet runtime packs, not `C:\Program Files\dotnet` | The file there is Microsoft's licence for the .NET download itself, not the MIT licence of the runtime the app ships. The runtime packs a self-contained build is made from carry the right ones |
 | 2026-10-02 | **Superseded**: the chip shows the juzʾ by **number** — «الجزء الرابع» / "Juz 4" — not by name | The user found names that were factually wrong. They had been written from memory with no source, and mixed two traditions: the names South Asian muṣḥafs give their paras, against the Madani muṣḥaf's boundaries. Those muṣḥafs divide seven parts at different verses, so seven labels disagreed with the ۞ on screen — juzʾ 21 and 23 named verses from the part before — and juzʾ 4's boundary had come across at 3:92 instead of 3:93. A number belongs to no tradition. All thirty boundaries are now pinned in a test to Quran.com's `api/v4/juzs`, the source of the text the app displays, and diffed against the live API |
 | 2026-10-01 | The installer is a setup.exe built with **Inno Setup**, superseding the MSI plan | Asked for: a friend should install it by double-clicking, not running commands. Inno gives a single per-user exe with no admin prompt and a proper Settings → Apps entry, ships an Arabic translation, and a per-user screensaver with a seed checkbox is a few lines rather than a WiX project. MSI's advantage is company-managed deployment, which no one here needs. MSIX was ruled out: it virtualises the registry, so the value telling Windows which screensaver to use would land where Windows never reads it |
 | 2026-10-01 | Removing a moved library is the app's job (`/purge`), not the uninstaller's | Only the app can read its settings to find where the library went, and two copies of "which folders are safe to delete" — one in Pascal, one in PowerShell — would sooner or later disagree. Both uninstall paths call the same tested C# |

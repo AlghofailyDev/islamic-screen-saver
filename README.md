@@ -18,11 +18,15 @@ rights, no extra software.
 3. Windows will probably say **"Windows protected your PC"**. That's because this test build isn't
    signed with a paid certificate — not because anything is wrong with it. Click **More info**, then
    **Run anyway**.
-4. Leave both boxes ticked and click through:
+4. Click through the welcome page and the license. There's nothing to accept — it's free software,
+   and the license is there to read.
+5. **Where to keep recitations** — choose a folder, or keep the suggested one. They can take a few
+   gigabytes, so another drive is worth considering. You can move them later in *Library → Storage*.
+6. Leave both boxes ticked:
    - **Use it as my screensaver**
    - **Download starter recitations now** — Mishari al-ʿAfasy reciting Al-Fātiḥah and Juzʾ ʿAmma
      (about 55 MB), so it has something to play straight away
-5. On the last page, leave **Open the screensaver's settings** ticked to have a look around.
+7. On the last page, leave **Open the screensaver's settings** ticked to have a look around.
 
 The installer is in English or Arabic, following your Windows language.
 
@@ -81,6 +85,17 @@ downloads. You can untick *Download starter recitations* this time.
 It asks whether to also remove your settings and downloaded recitations. **No** keeps them, so
 they're still there if you install again; **Yes** removes everything, including a library you moved
 to another drive.
+
+## License
+
+Islamic Screensaver is free software, released under the
+[GNU General Public License v3](LICENSE). You may use it, share it and change it. If you share a
+changed version, it has to stay under the same license, with its source available and the original
+credited — so it can be built on, but never turned into a closed product.
+
+The recitations, Qur'an text and translations are not part of this project: they come from
+[Quran.com](https://quran.com) and [MP3 Quran](https://mp3quran.net), under their own terms. See
+[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md) for those and for the software bundled with the app.
 
 ## Where things are kept
 

@@ -10,15 +10,27 @@
         <TextBlock Text="{s:Loc about.content}" Style="{StaticResource SectionTitle}" />
         <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20,16">
             <StackPanel>
-                <TextBlock Style="{StaticResource Body}">
+                <TextBlock Style="{StaticResource Body}" TextWrapping="Wrap">
                     Recitations, verse timings, Uthmani text and translations are provided by
                     <Hyperlink NavigateUri="https://quran.com" RequestNavigate="Link_RequestNavigate">Quran.com</Hyperlink>
-                    through its public API. Each translation remains the work of its named translator or publisher.
+                    and <Hyperlink NavigateUri="https://mp3quran.net" RequestNavigate="Link_RequestNavigate">MP3 Quran</Hyperlink>
+                    through their public APIs. Each translation remains the work of its named translator or publisher.
                 </TextBlock>
                 <TextBlock Style="{StaticResource Body}" Margin="0,10,0,0">
                     Audio playback uses <Hyperlink NavigateUri="https://github.com/naudio/NAudio" RequestNavigate="Link_RequestNavigate">NAudio</Hyperlink> (MIT).
                     The Arabic typeface is Windows' own unless a Quran font such as KFGQPC Uthmanic Hafs is placed in the app's assets\fonts folder.
                 </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Text="{s:Loc about.license}" Style="{StaticResource SectionTitle}" />
+        <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20,16">
+            <StackPanel>
+                <TextBlock Text="{s:Loc about.license.body}" Style="{StaticResource Body}" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button Content="{s:Loc about.readLicense}" Style="{StaticResource StandardButton}" Click="ReadLicense_Click" />
+                    <Button Content="{s:Loc about.notices}" Style="{StaticResource StandardButton}" Margin="8,0,0,0" Click="Notices_Click" />
+                </StackPanel>
             </StackPanel>
         </Border>
 

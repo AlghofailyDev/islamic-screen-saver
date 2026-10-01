@@ -36,6 +36,17 @@
   </ItemGroup>
 
   <!--
+    The licence and every third-party notice travel with each copy: the GPL asks for its text to
+    accompany the program, and the MIT licences of the bundled .NET runtime and NAudio require their
+    notices "in all copies". A self-contained build ships the runtime without them, so they are added here.
+  -->
+  <ItemGroup>
+    <Content Include="..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\licenses\**\*" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
     Windows recognises a screensaver by its .scr extension. The .NET apphost locates its DLL and
     runtimeconfig by its own file name minus extension, so renaming the published exe is all it takes.
   -->

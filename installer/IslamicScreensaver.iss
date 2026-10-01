@@ -29,6 +29,11 @@ DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 
+; Welcome, then the licence, so nobody lands cold on a list of checkboxes. The licence is shown to be
+; read, not accepted: the GPL itself (section 9) says no acceptance is needed to receive or run it.
+DisableWelcomePage=no
+InfoBeforeFile=..\LICENSE
+
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
@@ -51,7 +56,29 @@ SetupLogging=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "arabic"; MessagesFile: "compiler:Languages\Arabic.isl"
 
+[Messages]
+english.WelcomeLabel2=This will install [name/ver] on your computer.%n%nIt is free software: you may use it, share it and change it under the GNU General Public License, which you can read on the next page.%n%nThis is a test build — please tell us about anything that does not work as you expect.
+arabic.WelcomeLabel2=سيُثبّت هذا المعالج [name/ver] على جهازك.%n%nهذا برنامج حر: يحق لك استخدامه ومشاركته وتعديله وفق رخصة جنو العمومية العامة، التي يمكنك قراءتها في الصفحة التالية.%n%nهذه نسخة تجريبية، فأخبرنا بأي شيء لا يعمل كما تتوقع.
+english.WizardInfoBefore=License
+english.InfoBeforeLabel=Islamic Screensaver is free software, released under the GNU General Public License version 3:
+english.InfoBeforeClickLabel=You don't need to accept anything to install or use it. When you are ready, click Next.
+arabic.WizardInfoBefore=الترخيص
+arabic.InfoBeforeLabel=هذا برنامج حر، يُنشر وفق رخصة جنو العمومية العامة، الإصدار 3:
+arabic.InfoBeforeClickLabel=لا يلزمك قبول أي شيء لتثبيته أو استخدامه. عندما تكون جاهزًا اضغط التالي.
+
 [CustomMessages]
+english.LibraryTitle=Where to keep recitations
+arabic.LibraryTitle=مكان حفظ التلاوات
+english.LibrarySubtitle=Recitations can take a few gigabytes, so you may prefer another drive.
+arabic.LibrarySubtitle=قد تشغل التلاوات بضعة جيجابايت، لذا قد تفضّل قرصًا آخر.
+english.LibraryExplain=Choose a folder for downloaded recitations, or keep the one suggested. A folder called IslamicScreensaver is made inside it to hold them.%n%nYou can move them later from the screensaver's settings, under Library.
+arabic.LibraryExplain=اختر مجلدًا للتلاوات المنزَّلة أو أبقِ المجلد المقترح. سيُنشأ داخله مجلد باسم IslamicScreensaver لحفظها.%n%nيمكنك نقلها لاحقًا من إعدادات شاشة التوقف، في قسم المكتبة.
+english.LibraryPreview=Recitations will be saved in:%n%1
+arabic.LibraryPreview=ستُحفظ التلاوات في:%n%1
+english.LibraryInsideApp=Choose a folder outside the program's own folder, so an update can never erase your recitations.
+arabic.LibraryInsideApp=اختر مجلدًا خارج مجلد البرنامج، حتى لا يمحو أي تحديث تلاواتك.
+english.LibraryNoDrive=That drive is not available. Choose another folder.
+arabic.LibraryNoDrive=هذا القرص غير متاح. اختر مجلدًا آخر.
 english.TaskSetScreensaver=Use it as my screensaver
 arabic.TaskSetScreensaver=استخدمه شاشةَ توقفٍ لي
 english.TaskSeed=Download starter recitations now — Mishari al-ʿAfasy, Al-Fātiḥah and Juzʾ ʿAmma, about 55 MB
@@ -79,6 +106,8 @@ Root: HKCU; Subkey: "Control Panel\Desktop"; ValueType: string; ValueName: "Scre
 [Run]
 ; Launched directly, never through the shell: Windows applies a .scr file's default verb (/S, "run
 ; the screensaver") when it is opened through the shell, and the argument would be thrown away.
+; The library folder is recorded first, so the starter recitations below land in it.
+Filename: "{app}\{#ScrName}"; Parameters: "/library ""{code:LibraryFolder}"""; Flags: runhidden waituntilterminated; Check: IsFreshInstall
 Filename: "{app}\{#ScrName}"; Parameters: "/seed"; StatusMsg: "{cm:Seeding}"; Flags: runhidden waituntilterminated; Tasks: seed
 Filename: "{app}\{#ScrName}"; Parameters: "/c"; Description: "{cm:OpenSettings}"; Flags: postinstall nowait skipifsilent
 
@@ -91,6 +120,102 @@ const
 
 function SystemParametersInfo(uiAction, uiParam, pvParam, fWinIni: Cardinal): Boolean;
   external 'SystemParametersInfoW@user32.dll stdcall';
+
+var
+  LibraryPage: TInputDirWizardPage;
+  LibraryPreview: TNewStaticText;
+  FreshInstall: Boolean;
+
+{ The storage page appears on a first install only. With settings already on disk there may be
+  gigabytes of recitations somewhere, and choosing a new folder here would leave them behind rather
+  than move them; Library > Storage in the app moves them properly. The app enforces this too. }
+function InitializeSetup: Boolean;
+begin
+  FreshInstall := not FileExists(ExpandConstant('{userappdata}\IslamicScreensaver\settings.json'));
+  Result := True;
+end;
+
+function IsFreshInstall: Boolean;
+begin
+  Result := FreshInstall;
+end;
+
+{ Where the recitations will actually go: a folder of their own inside the one chosen, never loose
+  in it. Display only — mirrors AppPaths.LibraryInside, which is what the app really applies. }
+function LibraryTarget(Folder: String): String;
+var
+  Leaf, Parent: String;
+begin
+  Folder := RemoveBackslashUnlessRoot(Trim(Folder));
+  Leaf := ExtractFileName(Folder);
+  Parent := ExtractFileName(ExtractFileDir(Folder));
+  if (CompareText(Leaf, 'cache') = 0) and (CompareText(Parent, 'IslamicScreensaver') = 0) then
+    Result := Folder
+  else if CompareText(Leaf, 'IslamicScreensaver') = 0 then
+    Result := AddBackslash(Folder) + 'cache'
+  else
+    Result := AddBackslash(Folder) + 'IslamicScreensaver\cache';
+end;
+
+function LibraryFolder(Param: String): String;
+begin
+  Result := LibraryPage.Values[0];
+end;
+
+procedure LibraryChanged(Sender: TObject);
+begin
+  LibraryPreview.Caption := FmtMessage(CustomMessage('LibraryPreview'), [LibraryTarget(LibraryPage.Values[0])]);
+end;
+
+procedure InitializeWizard;
+begin
+  LibraryPage := CreateInputDirPage(wpInfoBefore,
+    CustomMessage('LibraryTitle'), CustomMessage('LibrarySubtitle'),
+    CustomMessage('LibraryExplain'), False, '');
+  LibraryPage.Add('');
+  LibraryPage.Values[0] := ExpandConstant('{localappdata}');
+
+  { The exact final path, under the box, so nobody has to guess what is added to their folder. }
+  LibraryPreview := TNewStaticText.Create(LibraryPage);
+  LibraryPreview.Parent := LibraryPage.Surface;
+  LibraryPreview.Top := LibraryPage.Edits[0].Top + LibraryPage.Edits[0].Height + ScaleY(16);
+  LibraryPreview.Left := LibraryPage.Edits[0].Left;
+  LibraryPreview.Width := LibraryPage.SurfaceWidth - LibraryPreview.Left;
+  LibraryPreview.AutoSize := False;
+  LibraryPreview.WordWrap := True;
+  LibraryPreview.Height := ScaleY(48);
+  LibraryPage.Edits[0].OnChange := @LibraryChanged;
+  LibraryChanged(nil);
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := (PageID = LibraryPage.ID) and not FreshInstall;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  Target, AppDir: String;
+begin
+  Result := True;
+  if CurPageID <> LibraryPage.ID then
+    Exit;
+
+  Target := LibraryTarget(LibraryPage.Values[0]);
+  // WizardDirValue rather than the app constant: this page comes before the (hidden) folder page,
+  // and the constant is not set until that has been passed.
+  AppDir := AddBackslash(WizardDirValue);
+  if CompareText(Copy(AddBackslash(Target), 1, Length(AppDir)), AppDir) = 0 then
+  begin
+    MsgBox(CustomMessage('LibraryInsideApp'), mbError, MB_OK);
+    Result := False;
+  end
+  else if not DirExists(AddBackslash(ExtractFileDrive(Target))) then
+  begin
+    MsgBox(CustomMessage('LibraryNoDrive'), mbError, MB_OK);
+    Result := False;
+  end;
+end;
 
 { A running screensaver, or the preview inside Windows' own Screen Saver dialog, holds the files open. }
 procedure StopRunningScreensaver;

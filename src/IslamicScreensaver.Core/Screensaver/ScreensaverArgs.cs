@@ -21,13 +21,20 @@ public enum ScreensaverMode
     /// moved to (<c>/purge</c>). Called by the uninstaller when the user asks for everything gone.
     /// </summary>
     Purge,
+
+    /// <summary>
+    /// Not a Windows mode: put the library in the folder the user chose during setup
+    /// (<c>/library "D:\Stuff"</c>). First install only — it never moves an existing library.
+    /// </summary>
+    Library,
 }
 
 /// <summary>
 /// The command line Windows hands a <c>.scr</c>. Windows is inconsistent about the shape —
 /// <c>/c</c>, <c>/c:1234</c>, <c>/p 1234</c>, <c>-s</c>, upper or lower case — so all of it is accepted.
 /// </summary>
-public sealed record ScreensaverArgs(ScreensaverMode Mode, nint ParentWindow)
+/// <param name="Value">The folder for <see cref="ScreensaverMode.Library"/>; unused otherwise.</param>
+public sealed record ScreensaverArgs(ScreensaverMode Mode, nint ParentWindow, string? Value = null)
 {
     public static ScreensaverArgs Parse(IReadOnlyList<string> args)
     {
@@ -54,6 +61,8 @@ public sealed record ScreensaverArgs(ScreensaverMode Mode, nint ParentWindow)
             "c" => new ScreensaverArgs(ScreensaverMode.Configure, handle),
             "seed" => new ScreensaverArgs(ScreensaverMode.Seed, 0),
             "purge" => new ScreensaverArgs(ScreensaverMode.Purge, 0),
+            // A path, not a handle: taken verbatim, so a folder with spaces arrives whole when quoted.
+            "library" => new ScreensaverArgs(ScreensaverMode.Library, 0, args.Count > 1 ? args[1] : null),
             // "/a" (legacy password change) and anything unknown fall back to settings.
             _ => new ScreensaverArgs(ScreensaverMode.Configure, 0),
         };

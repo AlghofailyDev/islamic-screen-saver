@@ -242,6 +242,13 @@ public static class Strings
         ["about.logs"] = ("Logs", "السجلات"),
         ["about.logs.desc"] = ("Useful if something misbehaves", "مفيدة إذا حدث خلل"),
         ["about.clearCache"] = ("Clear cache", "مسح التنزيلات"),
+        // The GPL's "appropriate legal notice" for a program with a user interface: a copyright line,
+        // that there is no warranty, and how to read the licence.
+        ["about.license"] = ("License", "الترخيص"),
+        ["about.license.body"] = ("Copyright © 2026 Abdulrahman AlGhofaily.\nIslamic Screensaver is free software: you may use, share and change it under the GNU General Public License, version 3. It comes with no warranty — the license has the details.",
+                                  "حقوق النشر © 2026 Abdulrahman AlGhofaily.\nشاشة توقف إسلامية برنامج حر: يحق لك استخدامه ومشاركته وتعديله وفق رخصة جنو العمومية العامة، الإصدار 3. ويُقدَّم دون أي ضمان، والتفاصيل في نص الرخصة."),
+        ["about.readLicense"] = ("Read the license", "اقرأ الرخصة"),
+        ["about.notices"] = ("Third-party notices", "إشعارات الأطراف الأخرى"),
 
         // Status and messages
         ["status.recitation"] = ("Recitation", "تلاوة"),

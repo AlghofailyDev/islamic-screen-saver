@@ -77,6 +77,21 @@ public partial class AboutPage : UserControl
         UpdateCacheSize();
     }
 
+    // Both ship beside the app as plain .txt, so they open in Notepad on any machine rather than
+    // asking which program should open a Markdown file.
+    private void ReadLicense_Click(object sender, RoutedEventArgs e) => OpenShipped("LICENSE.txt");
+
+    private void Notices_Click(object sender, RoutedEventArgs e) => OpenShipped("THIRD-PARTY-NOTICES.txt");
+
+    private static void OpenShipped(string name)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, name);
+        if (File.Exists(path))
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        else
+            Log.Error($"{path} is missing from the app folder.");
+    }
+
     private void Link_RequestNavigate(object sender, RequestNavigateEventArgs e)
     {
         Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });

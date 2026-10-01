@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -59,6 +60,41 @@ public partial class App : Application
             case ScreensaverMode.Purge:
                 Shutdown(Purge());
                 break;
+
+            case ScreensaverMode.Library:
+                Shutdown(ChooseLibrary(args.Value));
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Records the library folder picked on setup's storage page. Run before the starter recitations
+    /// download, so they land in the chosen place. A refused folder leaves the default in force.
+    /// </summary>
+    private static int ChooseLibrary(string? chosenFolder)
+    {
+        var existed = File.Exists(AppPaths.SettingsFile);
+        var settings = SettingsStore.Load();
+        string? problem = null;
+
+        var result = LibraryChoice.Apply(settings, existed, chosenFolder, AppPaths.CacheDirectory,
+            target => problem = Core.Content.CacheMover.Validate(AppPaths.CacheDirectory, target));
+
+        switch (result)
+        {
+            case LibraryChoiceResult.UsedChosen:
+                SettingsStore.Save(settings);
+                Log.Info($"Library will be kept at {settings.CacheDirectory}, as chosen during setup.");
+                return 0;
+            case LibraryChoiceResult.KeptExisting:
+                Log.Info("Setup offered a library folder, but settings already exist; the library stays where it is.");
+                return 0;
+            case LibraryChoiceResult.Refused:
+                Log.Error($"The folder chosen during setup ({chosenFolder}) cannot be used: {problem ?? "not a valid path"}. Using the default.");
+                return 1;
+            default:
+                Log.Info("Library will be kept in the default location.");
+                return 0;
         }
     }
 

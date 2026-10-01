@@ -153,7 +153,7 @@ public partial class LibraryPage : UserControl
             return;
 
         // A folder picker gives the parent; keep our own subfolder so a "Reset" can never delete the user's files.
-        var chosen = Path.Combine(dialog.FolderName, AppPaths.AppFolderName, "cache");
+        var chosen = AppPaths.LibraryInside(dialog.FolderName);
         await MoveLibraryTo(chosen, isDefault: false);
     }
 
