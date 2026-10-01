@@ -291,8 +291,10 @@ public static class Strings
                                         "حذف {0} سورة منزَّلة للقارئ {1} من هذا الجهاز؟"),
         ["dialog.chooseLocation"] = ("Choose where downloads are kept", "اختر مكان حفظ التنزيلات"),
         ["dialog.cannotUseFolder"] = ("Cannot use that folder", "تعذّر استخدام هذا المجلد"),
-        ["dialog.moveAsk"] = ("Move the {0} MB already downloaded to:\n\n{1}\n\nChoose No to leave it where it is and start fresh in the new folder.",
-                              "نقل {0} ميجابايت المنزَّلة إلى:\n\n{1}\n\nاختر «لا» لتركها مكانها والبدء من جديد في المجلد الجديد."),
+        // Three buttons, so each one is spelled out: "No" switching folders without moving anything
+        // is not something a reader would guess from a yes-or-no question.
+        ["dialog.moveAsk"] = ("Move the {0} MB already downloaded to:\n\n{1}\n\nYes — move the downloads there.\nNo — use the new folder and start fresh, leaving the downloads where they are.\nCancel — keep using the current folder.",
+                              "نقل {0} ميجابايت المنزَّلة إلى:\n\n{1}\n\nنعم — انقل التنزيلات إلى هناك.\nلا — استخدم المجلد الجديد وابدأ من جديد، مع ترك التنزيلات في مكانها.\nإلغاء — استمر في استخدام المجلد الحالي."),
         ["dialog.movePrompt"] = ("Move downloads?", "نقل التنزيلات؟"),
         ["dialog.moveFailed"] = ("Move failed", "فشل النقل"),
         ["dialog.moveFailedBody"] = ("The downloads could not be moved: {0}\n\nNothing was deleted; the library is still at {1}.",

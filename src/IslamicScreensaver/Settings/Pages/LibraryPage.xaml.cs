@@ -172,15 +172,25 @@ public partial class LibraryPage : UserControl
             return;
         }
 
+        // Three distinct answers, and Cancel is not a quiet No. Yes moves the files and repoints the
+        // library; No repoints it and leaves the files where they are; Cancel — and the dialog's X,
+        // which returns the same — backs out without changing anything at all. Folding Cancel into No
+        // meant someone who thought better of it still ended up pointed at an empty folder.
+        var move = false;
         var size = CacheMover.SizeOf(source);
-        var move = size > 0 && MessageBox.Show(
-            Strings.Get("dialog.moveAsk", (size / 1024.0 / 1024.0).ToString("0.0"), destination),
-            Strings.Get("dialog.movePrompt"), MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Yes) switch
+        if (size > 0)
         {
-            MessageBoxResult.Yes => true,
-            MessageBoxResult.No => false,
-            _ => (bool?)null,
-        } is true;
+            var answer = MessageBox.Show(
+                Strings.Get("dialog.moveAsk", (size / 1024.0 / 1024.0).ToString("0.0"), destination),
+                Strings.Get("dialog.movePrompt"), MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Yes);
+
+            if (answer is not (MessageBoxResult.Yes or MessageBoxResult.No))
+            {
+                Log.Info($"Library move to {destination} cancelled; staying at {source}.");
+                return;
+            }
+            move = answer == MessageBoxResult.Yes;
+        }
 
         _moving = true;
         _ctx.Downloads.CancelAll();

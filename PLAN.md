@@ -257,7 +257,8 @@ so every other surah needs one supplied. At-Tawbah is recited without one.
 - [x] "Test" button plays a downloaded surah through the chosen device (toggles to Stop)
 - [x] "System default" uses `.WithDefaultDeviceStreamRouting()`, so it follows Windows at runtime
 - [x] Verified on this PC 2026-09-16: 4 endpoints listed (HyperX headset, HyperX speakers, 2 monitors)
-- [ ] User to try: pick the speakers while the headset is the Windows default
+- [x] **Confirmed by the user 2026-10-01: the screensaver plays through the chosen speakers while the
+      headset stays the Windows default** — the whole point of the setting
 
 ### M5d — Custom storage location (requested 2026-09-13)
 - [x] `AppSettings.CacheDirectory` (null = `%LOCALAPPDATA%\IslamicScreensaver\cache`) with
@@ -270,7 +271,11 @@ so every other surah needs one supplied. At-Tawbah is recited without one.
       (`CacheMover.Validate`, unit tested)
 - [x] Screensaver shows a clear hint instead of failing when the folder is unavailable at launch
 - [x] Manifest paths stay relative, so a folder moved by hand (same layout) keeps working
-- [ ] User to try: move the library to another drive and back
+- [x] Tried by the user 2026-10-01, which turned up a real bug: **Cancel and the dialog's X behaved
+      like No** — the library was repointed at the new folder without the files being moved, so it
+      looked empty. Cancel now backs out without changing anything, and the dialog spells out all
+      three answers instead of leaving "No" to be guessed
+- [ ] User to try again: move the library to another drive and back, now that Cancel means cancel
 
 ### M7 — Localisation + dark mode (requested 2026-09-13)
 - [x] All UI text in one place (`Core/Localisation/Strings`), English + Arabic side by side; a test
@@ -410,6 +415,7 @@ Open:
 | 2026-09-26 | Our own entry in the Windows volume mixer is opened wide on every start; the volume setting is the only gain we apply | What a listener hears was our gain × our mixer entry × the device master. Windows remembers that entry per application for ever, so a slider nudged once months ago kept multiplying: 10% of 10% is 1% |
 | 2026-09-26 | The device's own volume is left alone unless the user opts in, and then restored exactly on exit | A muted PC is usually muted on purpose, and a screensaver that speaks at two in the morning is worse than a silent one — but a PC left on a shelf is the case the opt-in exists for |
 | 2026-09-26 | A verse too tall for the screen is fitted by stepping the type down, not by a `Viewbox` | Nineteen verses of the Qur'an overflow the card; 2:282, āyat ad-dayn, needs 72% more room than there is. A `Viewbox` scales uniformly, so the glass panel would grow narrower as well as shorter and its width would jump between verses. Shrinking only the type keeps the panel's width fixed. Measured over all 6,236 verses: eighteen land at 60–64px, 2:282 at 46px, none reaches the 38px floor |
+| 2026-10-01 | Cancel on a three-button prompt backs out entirely; it is never a quieter No | Changing the library folder asked "move the downloads?" as Yes/No/Cancel and treated Cancel as No, so thinking better of it still left the library pointed at an empty folder. A destructive-looking prompt has to let someone leave without having changed anything |
 | 2026-10-01 | Quiet hours are enforced when the screensaver starts, not by stopping it from starting | Windows owns the idle timer and there is no supported way to tell it "not now". What we control is what happens once it has launched, so the setting is a choice of behaviour rather than a veto |
 | 2026-10-01 | Quiet hours default to **off**, and "dark and silent" is the default once switched on | Nobody should have their screensaver change because they upgraded. Inside the window, blanking the display is the half of a screensaver that is welcome at night; the recitation and the light are the half that wakes you |
 | 2026-10-01 | A window whose end is before its start wraps past midnight; two identical times mean no window | 23:00–07:00 is how a night is written. The dangerous reading of `From == To` is "always", which would silence the screensaver for ever from one mis-click |
